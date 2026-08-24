@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# data/ IS tracked on purpose: quarterly inventory/scored/diff files are the
+# persisted record diff_quarters.py compares against next quarter. Only the
+# large intermediate "with_content" CSVs (raw scraped text) are excluded —
+# they're reproducible from the inventory + scoring script and bulky.
+data/with_content_*.csv

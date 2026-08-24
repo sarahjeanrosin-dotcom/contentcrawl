@@ -1,0 +1,7 @@
+requests
+beautifulsoup4
+lxml
+pypdf
+pandas
+openpyxl
+anthropic
