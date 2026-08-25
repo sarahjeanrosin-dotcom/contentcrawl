@@ -87,7 +87,10 @@ def main(input_csv: str, output_xlsx: str):
                   "CTA Score", "Composite Score", "Action Flag", "Notes", "Suggestions",
                   "Last Audited"]
     for col in score_cols:
-        df[col] = ""
+        # dtype=object, not the bare "" default: pandas 3.x infers a strict
+        # string dtype from an empty-string column, which then rejects the
+        # ints (seo_score, composite_score, etc.) we assign into it below.
+        df[col] = pd.Series([""] * len(df), dtype="object")
 
     today = pd.Timestamp.now().strftime("%Y-%m-%d")
 
