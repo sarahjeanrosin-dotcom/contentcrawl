@@ -60,16 +60,21 @@ def score_one(title, content_type, last_updated, content, max_chars=8000):
         last_updated=last_updated or "unknown",
         content=(content or "")[:max_chars],
     )
+    # 500 was too tight: a full 5-suggestion response commonly runs 400-540
+    # output tokens, so about half of real responses were getting cut off
+    # mid-string (stop_reason "max_tokens") and silently failing to parse,
+    # leaving that row's scores blank. 1024 leaves real headroom.
     response = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=500,
+        max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],
     )
     text = response.content[0].text.strip()
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        print(f"  [warn] could not parse response for '{title}': {text[:200]}", file=sys.stderr)
+        reason = f" (stop_reason={response.stop_reason})" if response.stop_reason != "end_turn" else ""
+        print(f"  [warn] could not parse response for '{title}'{reason}: {text[:200]}", file=sys.stderr)
         return None
 
 

@@ -1,0 +1,55 @@
+[
+  {
+    "title": "Why Work Order Systems Don't Work for Managing On-Demand HVAC",
+    "type": "Blog",
+    "url": "https://www.getgenea.com/blog/why-work-order-systems-dont-work-for-managing-overtime-hvac/",
+    "content_len": 4396,
+    "result": null
+  },
+  {
+    "title": "OfferUp + Genea Case Study",
+    "type": "Case Study",
+    "url": "https://www.getgenea.com/case-studies/offerup/",
+    "content_len": 863,
+    "result": {
+      "seo_score": 7,
+      "brand_score": 11,
+      "freshness_score": 6,
+      "readability_score": 10,
+      "cta_score": 9,
+      "composite_score": 43,
+      "action_flag": "Update",
+      "notes": "The biggest weakness is extreme content thinness \u2014 this is essentially a two-paragraph stub with no real case study substance (no metrics, no customer quotes, no before/after narrative), making it nearly valueless for SEO or conversion; the biggest strength is a clear Okta integration angle and a direct CTA that aligns to a specific use case.",
+      "suggestions": [
+        "Expand the case study body with at least one quantified outcome (e.g., time saved provisioning new hires, reduction in access errors) and a direct customer quote \u2014 without these the page has no credibility or SEO depth.",
+        "Fix the misspelling 'Belleuve' to 'Bellevue' and audit whether OfferUp's current company description (app store rankings, headquarters) is still accurate, as the 'top five for over three years' claim and company details carry an unknown publication date.",
+        "Replace the generic phrase 'cloud-based access control solution' with Genea's current product name and 'cloud-native' positioning language to align with current brand standards and avoid deprecated terminology.",
+        "Add a meta description targeting a keyword such as 'Okta access control integration case study' or 'automate physical access control with Okta Lifecycle Management' \u2014 none currently exists, leaving the page invisible to relevant search queries.",
+        "Add H2/H3 subheadings (e.g., 'The Challenge,' 'The Solution,' 'The Results') to give the page a proper content structure that both improves readability and signals topical relevance to search engines."
+      ]
+    }
+  },
+  {
+    "title": "Genea + braXos Integration",
+    "type": "Web Page",
+    "url": "https://www.getgenea.com/integrations/braxos/",
+    "content_len": 1518,
+    "result": {
+      "seo_score": 6,
+      "brand_score": 11,
+      "freshness_score": 9,
+      "readability_score": 6,
+      "cta_score": 8,
+      "composite_score": 40,
+      "action_flag": "Update",
+      "notes": "The page is essentially a shell \u2014 there is no body copy describing what braXos is, what the integration does, how it works, or why a buyer should care, making it nearly useless for SEO, brand storytelling, or conversion. The one strength is that a 'Book A Demo' CTA is present above the fold.",
+      "suggestions": [
+        "Write at least 300 words of body copy explaining what braXos is, what specific problems the Genea + braXos integration solves (e.g., unified credential management, elevator access tied to visitor workflows), and which customer personas benefit \u2014 the current page has zero descriptive content.",
+        "Add a unique title tag and meta description targeting a specific keyword phrase such as 'braXos access control integration' or 'visitor management elevator control integration' \u2014 no meta description exists and the current title 'Genea + braXos Integration' is bare minimum.",
+        "Replace or supplement the vague H1 'Integrated Access Control and Visitor Management and Elevator Controls' with a benefit-led headline (e.g., 'Connect braXos Elevator Controls to Genea Access Control and Visitor Management in One Cloud Platform') that reinforces Genea's cloud-native, non-proprietary hardware positioning.",
+        "Add a structured 'How It Works' or feature-list section with H2/H3 subheadings (e.g., 'What You Can Do With This Integration,' 'Supported Use Cases') to give the page scannable content, improve dwell time, and create internal linking anchors to related Genea product and integration pages.",
+        "Add at least two internal links from this page \u2014 one to the Genea Visitor Management product page and one to the Integrations directory \u2014 and consider a secondary CTA (e.g., 'Explore All Integrations') alongside 'Book A Demo' to serve users earlier in the research phase."
+      ]
+    }
+  }
+]
