@@ -11,6 +11,7 @@ import json
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import anthropic
 import pandas as pd
@@ -173,7 +174,7 @@ SCORE_COLS = ["SEO Score", "Brand Score", "Freshness Score", "Readability Score"
               "Impact", "Effort", "Priority", "Last Audited"]
 
 
-def main(input_csv: str, output_xlsx: str, checkpoint_every: int = 15):
+def main(input_csv: str, output_xlsx: str, checkpoint_every: int = 15, max_workers: int = 6):
     df = pd.read_csv(input_csv)
     if "Content" not in df.columns:
         raise SystemExit("Input CSV needs a 'Content' column — run extract_content.py first.")
@@ -192,9 +193,14 @@ def main(input_csv: str, output_xlsx: str, checkpoint_every: int = 15):
     if os.path.exists(output_xlsx):
         prior = pd.read_excel(output_xlsx)
         if "Link" in prior.columns and "Last Audited" in prior.columns:
+            # pd.notna(), not a string/truthiness check: an unscored cell
+            # reads back from Excel as float NaN, and str(nan) is the
+            # non-empty string "nan" -- a truthiness check would treat
+            # every never-scored row as "already done" and copy NaN into
+            # it forever instead of actually scoring it.
             prior_by_link = {
                 row["Link"]: row for _, row in prior.iterrows()
-                if str(row.get("Last Audited", "")).strip()
+                if pd.notna(row.get("Last Audited"))
             }
             resumed = 0
             for idx, row in df.iterrows():
@@ -211,21 +217,7 @@ def main(input_csv: str, output_xlsx: str, checkpoint_every: int = 15):
     def save():
         df.drop(columns=["Content"], errors="ignore").to_excel(output_xlsx, index=False)
 
-    for idx, row in df.iterrows():
-        if str(df.at[idx, "Last Audited"]).strip():
-            continue  # already scored in a resumed prior attempt
-
-        print(f"Scoring [{idx+1}/{len(df)}]: {row.get('Title') or row.get('Link')}")
-        try:
-            result = score_one(row.get("Title", ""), row.get("Type", ""),
-                                row.get("Last Updated", ""), row.get("Content", ""))
-        except Exception as e:
-            # Anything unexpected (not just the connection/API errors
-            # score_one already retries) should not take down the other
-            # 463 rows -- log it, leave this row blank, keep going.
-            print(f"  [warn] unexpected error scoring '{row.get('Title')}': {e}", file=sys.stderr)
-            result = None
-
+    def apply_result(idx, result):
         if result:
             df.at[idx, "SEO Score"] = result.get("seo_score", "")
             df.at[idx, "Brand Score"] = result.get("brand_score", "")
@@ -248,11 +240,47 @@ def main(input_csv: str, output_xlsx: str, checkpoint_every: int = 15):
             # not get silently skipped forever.
             df.at[idx, "Last Audited"] = today
 
-        if (idx + 1) % checkpoint_every == 0:
-            save()
-            print(f"  [checkpoint] saved progress through row {idx+1}")
+    def score_task(idx, title, content_type, last_updated, content):
+        # Runs in a worker thread. Deliberately touches nothing but its own
+        # local arguments and the network call -- no DataFrame access here,
+        # so there's no concurrent-pandas-mutation risk to reason about.
+        # Anything unexpected (not just the connection/API errors score_one
+        # already retries) is caught here so one bad row can't take down
+        # the pool or the other rows.
+        try:
+            return idx, score_one(title, content_type, last_updated, content)
+        except Exception as e:
+            print(f"  [warn] unexpected error scoring '{title}': {e}", file=sys.stderr)
+            return idx, None
 
-        time.sleep(0.5)  # gentle rate limiting
+    pending = [
+        idx for idx, _ in df.iterrows()
+        if not (pd.notna(df.at[idx, "Last Audited"]) and str(df.at[idx, "Last Audited"]).strip())
+    ]
+
+    if not pending:
+        print("Nothing left to score -- all rows already done.")
+    else:
+        print(f"Scoring {len(pending)} row(s) with {max_workers} concurrent workers...")
+        completed = 0
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [
+                executor.submit(
+                    score_task, idx,
+                    df.at[idx, "Title"], df.at[idx, "Type"],
+                    df.at[idx, "Last Updated"], df.at[idx, "Content"],
+                )
+                for idx in pending
+            ]
+            for future in as_completed(futures):
+                idx, result = future.result()
+                apply_result(idx, result)  # all DataFrame writes happen here, main thread only
+                completed += 1
+                title = df.at[idx, "Title"] or df.at[idx, "Link"]
+                print(f"Scored [{completed}/{len(pending)}]: {title}")
+                if completed % checkpoint_every == 0:
+                    save()
+                    print(f"  [checkpoint] saved progress ({completed}/{len(pending)} this run)")
 
     save()
     print(f"Wrote {output_xlsx}")
