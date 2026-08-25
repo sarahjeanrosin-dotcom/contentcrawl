@@ -14,6 +14,7 @@ import csv
 import io
 import re
 import sys
+import time
 
 import requests
 from bs4 import BeautifulSoup
@@ -141,6 +142,11 @@ def main(input_csv: str, output_csv: str):
         row["Content"] = content
         if not row.get("Title"):
             row["Title"] = title
+        # A real full-site run (464 sequential requests, no delay) got
+        # rate-limited/blocked partway through -- pages fetched successfully
+        # (no exception) but returned empty content for ~115 rows near the
+        # end. A small pause keeps this from recurring.
+        time.sleep(0.2)
 
     with open(output_csv, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)

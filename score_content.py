@@ -175,7 +175,12 @@ SCORE_COLS = ["SEO Score", "Brand Score", "Freshness Score", "Readability Score"
 
 
 def main(input_csv: str, output_xlsx: str, checkpoint_every: int = 15, max_workers: int = 6):
-    df = pd.read_csv(input_csv)
+    # keep_default_na=False: an empty Content cell (extraction genuinely
+    # found nothing) otherwise reads back as float NaN, not "". NaN is
+    # truthy in Python, so `content or ""` doesn't rescue it and
+    # `nan[:max_chars]` crashes with "'float' object is not subscriptable"
+    # -- confirmed: this silently dropped 115/464 rows on the real full run.
+    df = pd.read_csv(input_csv, keep_default_na=False)
     if "Content" not in df.columns:
         raise SystemExit("Input CSV needs a 'Content' column — run extract_content.py first.")
 
