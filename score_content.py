@@ -12,6 +12,7 @@ import os
 import sys
 import time
 
+import anthropic
 import pandas as pd
 from anthropic import Anthropic
 
@@ -111,7 +112,7 @@ def build_reference_block(title, content):
     return f"\nHELP CENTER REFERENCE (current product docs — {len(relevant)} article(s), use per factor 3 above):\n{formatted}\n"
 
 
-def score_one(title, content_type, last_updated, content, max_chars=8000):
+def score_one(title, content_type, last_updated, content, max_chars=8000, max_retries=4):
     prompt = RUBRIC_PROMPT.format(
         title=title,
         content_type=content_type,
@@ -123,11 +124,41 @@ def score_one(title, content_type, last_updated, content, max_chars=8000):
     # output tokens, so about half of real responses were getting cut off
     # mid-string (stop_reason "max_tokens") and silently failing to parse,
     # leaving that row's scores blank. 1024 leaves real headroom.
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=1024,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    #
+    # A ~464-call, hour-long run WILL hit a transient network blip somewhere
+    # (confirmed: the first real full run died on call #1 with a DNS
+    # lookup failure) -- retry with backoff rather than letting one hiccup
+    # kill the whole run.
+    response = None
+    for attempt in range(max_retries):
+        try:
+            response = client.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=1024,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            break
+        except anthropic.APIConnectionError as e:
+            if attempt == max_retries - 1:
+                print(f"  [warn] connection error for '{title}' after {max_retries} attempts: {e}", file=sys.stderr)
+                return None
+            wait = 2 ** attempt
+            print(f"  [warn] connection error for '{title}' (attempt {attempt+1}/{max_retries}), retrying in {wait}s: {e}", file=sys.stderr)
+            time.sleep(wait)
+        except anthropic.APIStatusError as e:
+            if e.status_code == 429 or e.status_code >= 500:
+                if attempt == max_retries - 1:
+                    print(f"  [warn] API error {e.status_code} for '{title}' after {max_retries} attempts", file=sys.stderr)
+                    return None
+                wait = 2 ** attempt
+                print(f"  [warn] API error {e.status_code} for '{title}' (attempt {attempt+1}/{max_retries}), retrying in {wait}s", file=sys.stderr)
+                time.sleep(wait)
+            else:
+                print(f"  [warn] API error {e.status_code} for '{title}': {e}", file=sys.stderr)
+                return None
+    if response is None:
+        return None
+
     text = response.content[0].text.strip()
     try:
         return json.loads(text)
@@ -137,26 +168,64 @@ def score_one(title, content_type, last_updated, content, max_chars=8000):
         return None
 
 
-def main(input_csv: str, output_xlsx: str):
+SCORE_COLS = ["SEO Score", "Brand Score", "Freshness Score", "Readability Score",
+              "CTA Score", "Composite Score", "Action Flag", "Notes", "Suggestions",
+              "Impact", "Effort", "Priority", "Last Audited"]
+
+
+def main(input_csv: str, output_xlsx: str, checkpoint_every: int = 15):
     df = pd.read_csv(input_csv)
     if "Content" not in df.columns:
         raise SystemExit("Input CSV needs a 'Content' column — run extract_content.py first.")
 
-    score_cols = ["SEO Score", "Brand Score", "Freshness Score", "Readability Score",
-                  "CTA Score", "Composite Score", "Action Flag", "Notes", "Suggestions",
-                  "Impact", "Effort", "Priority", "Last Audited"]
-    for col in score_cols:
+    for col in SCORE_COLS:
         # dtype=object, not the bare "" default: pandas 3.x infers a strict
         # string dtype from an empty-string column, which then rejects the
         # ints (seo_score, composite_score, etc.) we assign into it below.
         df[col] = pd.Series([""] * len(df), dtype="object")
 
+    # Resume support: a ~464-call run takes 45-60 min and WILL occasionally
+    # hit something it can't recover from (confirmed: a DNS blip killed the
+    # first real attempt at call #1). If output_xlsx already has results
+    # from a prior attempt, reuse them by Link and only score what's left,
+    # instead of re-paying for and re-running everything from scratch.
+    if os.path.exists(output_xlsx):
+        prior = pd.read_excel(output_xlsx)
+        if "Link" in prior.columns and "Last Audited" in prior.columns:
+            prior_by_link = {
+                row["Link"]: row for _, row in prior.iterrows()
+                if str(row.get("Last Audited", "")).strip()
+            }
+            resumed = 0
+            for idx, row in df.iterrows():
+                prior_row = prior_by_link.get(row.get("Link"))
+                if prior_row is not None:
+                    for col in SCORE_COLS:
+                        df.at[idx, col] = prior_row.get(col, "")
+                    resumed += 1
+            if resumed:
+                print(f"Resuming: {resumed}/{len(df)} rows already scored in a prior attempt, reusing them.")
+
     today = pd.Timestamp.now().strftime("%Y-%m-%d")
 
+    def save():
+        df.drop(columns=["Content"], errors="ignore").to_excel(output_xlsx, index=False)
+
     for idx, row in df.iterrows():
+        if str(df.at[idx, "Last Audited"]).strip():
+            continue  # already scored in a resumed prior attempt
+
         print(f"Scoring [{idx+1}/{len(df)}]: {row.get('Title') or row.get('Link')}")
-        result = score_one(row.get("Title", ""), row.get("Type", ""),
-                            row.get("Last Updated", ""), row.get("Content", ""))
+        try:
+            result = score_one(row.get("Title", ""), row.get("Type", ""),
+                                row.get("Last Updated", ""), row.get("Content", ""))
+        except Exception as e:
+            # Anything unexpected (not just the connection/API errors
+            # score_one already retries) should not take down the other
+            # 463 rows -- log it, leave this row blank, keep going.
+            print(f"  [warn] unexpected error scoring '{row.get('Title')}': {e}", file=sys.stderr)
+            result = None
+
         if result:
             df.at[idx, "SEO Score"] = result.get("seo_score", "")
             df.at[idx, "Brand Score"] = result.get("brand_score", "")
@@ -173,10 +242,19 @@ def main(input_csv: str, output_xlsx: str):
             df.at[idx, "Impact"] = impact
             df.at[idx, "Effort"] = effort
             df.at[idx, "Priority"] = compute_priority(impact, effort)
-        df.at[idx, "Last Audited"] = today
+            # Only stamped on success: resume treats a non-empty Last
+            # Audited as "done, skip it" -- a row that failed (result is
+            # None) should stay eligible for retry on the next resume,
+            # not get silently skipped forever.
+            df.at[idx, "Last Audited"] = today
+
+        if (idx + 1) % checkpoint_every == 0:
+            save()
+            print(f"  [checkpoint] saved progress through row {idx+1}")
+
         time.sleep(0.5)  # gentle rate limiting
 
-    df.drop(columns=["Content"], errors="ignore").to_excel(output_xlsx, index=False)
+    save()
     print(f"Wrote {output_xlsx}")
 
 
