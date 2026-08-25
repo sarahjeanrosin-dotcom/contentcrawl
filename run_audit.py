@@ -15,6 +15,9 @@ Flags:
   --force-inventory   re-crawl the sitemap even if data/inventory_<quarter>.csv
                        already exists (overwrites it — any hand-added rows
                        will be lost)
+  --refresh-help-center   re-crawl help.getgenea.com even if data/help_center.json
+                       already exists (it's reused across quarters otherwise,
+                       since it changes far less often than marketing content)
   --prior-quarter      defaults to the quarter immediately before --quarter
                        (e.g. --quarter 2026-Q4 -> 2026-Q3); pass this if your
                        comparison quarter doesn't follow that pattern
@@ -29,6 +32,7 @@ import sys
 import build_site
 import diff_quarters
 import extract_content
+import extract_help_center
 import inventory_website
 import score_content
 
@@ -52,6 +56,8 @@ def main():
                          help="defaults to the quarter immediately before --quarter")
     parser.add_argument("--force-inventory", action="store_true",
                          help="re-crawl the sitemap even if the inventory CSV already exists")
+    parser.add_argument("--refresh-help-center", action="store_true",
+                         help="re-crawl help.getgenea.com even if data/help_center.json already exists")
     parser.add_argument("--sitemap-url", default=inventory_website.SITEMAP_URL)
     args = parser.parse_args()
 
@@ -61,6 +67,7 @@ def main():
     with_content_csv = os.path.join(DATA_DIR, f"with_content_{args.quarter}.csv")
     scored_xlsx = os.path.join(DATA_DIR, f"scored_{args.quarter}.xlsx")
     diff_csv = os.path.join(DATA_DIR, f"diff_{args.quarter}.csv")
+    help_center_json = os.path.join(DATA_DIR, "help_center.json")
 
     if os.path.exists(inventory_csv) and not args.force_inventory:
         print(f"=== Step 1: skipped, using existing {inventory_csv} ===")
@@ -74,6 +81,13 @@ def main():
 
     print("=== Step 2: Content extraction ===")
     extract_content.main(inventory_csv, with_content_csv)
+
+    if os.path.exists(help_center_json) and not args.refresh_help_center:
+        print(f"=== Step 2.5: skipped, using existing {help_center_json} ===")
+        print("    (pass --refresh-help-center to re-crawl if the help center has changed)")
+    else:
+        print("=== Step 2.5: Help center reference crawl ===")
+        extract_help_center.main(help_center_json)
 
     print("=== Step 3: Scoring ===")
     score_content.main(with_content_csv, scored_xlsx)

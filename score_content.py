@@ -15,7 +15,22 @@ import time
 import pandas as pd
 from anthropic import Anthropic
 
+import help_reference
+
 client = Anthropic()  # reads ANTHROPIC_API_KEY from env
+
+# Lazy-loaded (not at import time): run_audit.py imports this module before
+# it's had a chance to build data/help_center.json on a first-time run, so
+# loading eagerly here would permanently freeze HELP_CORPUS empty for that
+# whole process. Loaded once, on first actual use, and cached from then on.
+_HELP_CORPUS = None
+
+
+def get_help_corpus():
+    global _HELP_CORPUS
+    if _HELP_CORPUS is None:
+        _HELP_CORPUS = help_reference.load_corpus()
+    return _HELP_CORPUS
 
 RUBRIC_PROMPT = """You are auditing one piece of Genea marketing content (Genea is a \
 cloud-native physical access control / smart building SaaS company). Score it 0-20 on \
@@ -26,18 +41,26 @@ each of the following five factors, then sum for a composite 0-100 score.
 2. Brand & Messaging — matches current Genea positioning (cloud-native, non-proprietary \
    hardware, "extend beyond the door"), correct current product names, no deprecated \
    claims or competitor comparisons that may be stale.
-3. Freshness & Accuracy — does the content reference current products, integrations, \
-   or figures that could be outdated? Penalize content that reads as stale.
+3. Freshness & Accuracy — does the content reference current products, integrations, or \
+   figures that could be outdated? If a HELP CENTER REFERENCE section is provided below, \
+   treat it as ground truth for how the product actually works today: flag any place the \
+   content contradicts it, describes a workflow/feature that reference shows has changed, \
+   or misses a current capability the reference shows exists that the content could be \
+   promoting. If no reference section is provided, or none of it is relevant to this \
+   content, fall back to general judgment. Penalize content that reads as stale.
 4. Readability & Quality — clarity, structure, grammar, appropriate length for the format.
 5. CTA & Conversion Clarity — is there a clear, appropriate next step (demo, download, \
    contact)?
 
 Also provide concrete, specific improvement suggestions — not generic advice. Reference
-actual phrases, headers, or gaps in the content provided. If the composite score is 80+,
-suggestions can be an empty list. Below 80, give 3-5 suggestions ordered by expected impact
-(highest-impact first), each one sentence and actionable (e.g. "Add a meta description
-targeting 'cloud-based access control for schools' — none currently exists" rather than
-"improve SEO").
+actual phrases, headers, or gaps in the content provided. Where a suggestion is grounded
+in the HELP CENTER REFERENCE, say so explicitly and name the specific article (e.g. "Per
+the help article 'How do I create an Access Group?', this page still describes the older
+workflow — update it to match" — invent nothing; only cite what's actually in the
+reference below). If the composite score is 80+, suggestions can be an empty list. Below
+80, give 3-5 suggestions ordered by expected impact (highest-impact first), each one
+sentence and actionable (e.g. "Add a meta description targeting 'cloud-based access
+control for schools' — none currently exists" rather than "improve SEO").
 
 If there are any suggestions, also rate the suggested work as a whole on two dimensions, so
 low-effort/high-value fixes can be triaged first:
@@ -60,6 +83,7 @@ Type: {content_type}
 Last Updated: {last_updated}
 Content:
 {content}
+{reference}
 """
 
 
@@ -79,12 +103,21 @@ def compute_priority(impact, effort):
     return PRIORITY_MATRIX.get((impact, effort), "")
 
 
+def build_reference_block(title, content):
+    relevant = help_reference.find_relevant(get_help_corpus(), title, content)
+    formatted = help_reference.format_reference(relevant)
+    if not formatted:
+        return ""
+    return f"\nHELP CENTER REFERENCE (current product docs — {len(relevant)} article(s), use per factor 3 above):\n{formatted}\n"
+
+
 def score_one(title, content_type, last_updated, content, max_chars=8000):
     prompt = RUBRIC_PROMPT.format(
         title=title,
         content_type=content_type,
         last_updated=last_updated or "unknown",
         content=(content or "")[:max_chars],
+        reference=build_reference_block(title, content),
     )
     # 500 was too tight: a full 5-suggestion response commonly runs 400-540
     # output tokens, so about half of real responses were getting cut off
