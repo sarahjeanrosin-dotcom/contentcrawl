@@ -26,6 +26,7 @@ import os
 import re
 import sys
 
+import build_site
 import diff_quarters
 import extract_content
 import inventory_website
@@ -84,6 +85,10 @@ def main():
         diff_quarters.main(prior_xlsx, scored_xlsx, diff_csv)
     else:
         print(f"=== Step 4: skipped — no prior scored file found ({prior_xlsx}) ===")
+
+    print("=== Step 5: Rebuilding dashboard (site/) ===")
+    build_site.main(scored_xlsx)
+    print("Commit and push data/ + site/ to deploy the updated dashboard on Netlify.")
 
     print(f"\nDone. See {scored_xlsx}" + (f" and {diff_csv}" if prior_xlsx and os.path.exists(prior_xlsx) else "."))
 
