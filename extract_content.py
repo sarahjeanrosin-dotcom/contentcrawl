@@ -29,6 +29,35 @@ def get_page_title(soup: BeautifulSoup) -> str:
     return h1.get_text(strip=True) if h1 else ""
 
 
+def get_page_body(soup: BeautifulSoup) -> str:
+    """
+    getgenea.com runs an Enfold/Avia-themed WordPress site, which doesn't use
+    semantic <article>/<header>/<footer> tags — and puts TWO unrelated <main>
+    elements on every page (a CTA banner and a footer sitemap block), neither
+    of which is the real body. Real content lives in one of two places
+    depending on template:
+      - Post-type templates (Blog, Case Study, Whitepaper/eBook landing,
+        Webinar): '.single-post-content-inner'.
+      - Page-builder templates (Products, Integrations, other Web Pages):
+        the '#main' container, once its footer-class sections are stripped.
+    Falls back to <body> text if neither pattern matches (e.g. a future
+    template change) rather than silently returning the wrong fragment.
+    """
+    post = soup.find("div", class_="single-post-content-inner")
+    if post:
+        return post.get_text(separator="\n", strip=True)
+
+    main = soup.find(id="main")
+    if main:
+        for tag in main.find_all(class_=lambda c: c and "footer" in " ".join(c)):
+            tag.decompose()
+        text = main.get_text(separator="\n", strip=True)
+        if text:
+            return text
+
+    return soup.body.get_text(separator="\n", strip=True) if soup.body else ""
+
+
 def get_page_text(url: str) -> tuple:
     """Returns (title, body_text) for a page; ("", "") on fetch failure."""
     try:
@@ -40,12 +69,7 @@ def get_page_text(url: str) -> tuple:
 
     soup = BeautifulSoup(resp.text, "html.parser")
     title = get_page_title(soup)
-
-    for tag in soup(["script", "style", "nav", "footer", "header"]):
-        tag.decompose()
-
-    main = soup.find("main") or soup.find("article") or soup.body
-    text = main.get_text(separator="\n", strip=True) if main else soup.get_text(separator="\n", strip=True)
+    text = get_page_body(soup)
     return title, re.sub(r"\n{3,}", "\n\n", text)
 
 
