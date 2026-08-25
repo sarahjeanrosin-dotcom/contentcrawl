@@ -47,6 +47,9 @@ def main(scored_xlsx: str):
             "actionFlag": row.get("Action Flag", ""),
             "notes": row.get("Notes", ""),
             "suggestions": [s.lstrip("- ").strip() for s in suggestions.split("\n") if s.strip()],
+            "impact": row.get("Impact", ""),
+            "effort": row.get("Effort", ""),
+            "priority": row.get("Priority", ""),
             "lastAudited": str(row.get("Last Audited", "")),
         })
 

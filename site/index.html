@@ -149,6 +149,7 @@
     <input type="text" id="search" placeholder="Search title or URL…">
     <select id="type-filter"><option value="">All types</option></select>
     <select id="flag-filter"><option value="">All action flags</option></select>
+    <select id="priority-filter"><option value="">All priorities</option></select>
   </div>
 
   <div class="card" style="padding:0; overflow-x:auto;">
@@ -159,6 +160,7 @@
           <th data-key="type">Type</th>
           <th data-key="composite" class="num">Score</th>
           <th data-key="actionFlag">Action</th>
+          <th data-key="priorityOrder">Priority</th>
           <th data-key="lastAudited">Last Audited</th>
         </tr>
       </thead>
@@ -180,6 +182,20 @@ const STATUS = {
 function statusFor(flag) {
   const key = Object.keys(STATUS).find(k => (flag || "").includes(k));
   return STATUS[key] || { color: "var(--text-muted)", order: 9 };
+}
+
+// Impact x Effort quadrant: "low hanging fruit" (high impact, low effort)
+// surfaces first. Colors reuse the status palette since this is the same
+// kind of "how urgently should I act" signal.
+const PRIORITY = {
+  "Quick Win":     { color: "var(--status-good)",    order: 0 },
+  "Major Project": { color: "var(--status-warning)", order: 1 },
+  "Fill-In":       { color: "var(--text-muted)",     order: 2 },
+  "Low Priority":  { color: "var(--text-muted)",     order: 3 },
+};
+
+function priorityFor(p) {
+  return PRIORITY[p] || { color: "var(--text-muted)", order: 9 };
 }
 
 let ITEMS = [];
@@ -216,6 +232,10 @@ function renderOverview(items) {
       <p class="label">Needs attention (Update + Refresh)</p>
       <p class="value">${(counts.Update || 0) + (counts.Refresh || 0)}</p>
     </div>
+    <div class="card stat-tile">
+      <p class="label">Quick wins (high impact, low effort)</p>
+      <p class="value" style="color:var(--status-good);">${items.filter(i => i.priority === "Quick Win").length}</p>
+    </div>
     <div class="card chart-card">
       <p class="chart-title">Assets by action flag</p>
       ${Object.keys(STATUS).map(flag => {
@@ -235,11 +255,15 @@ function renderOverview(items) {
 function populateFilters(items) {
   const typeSel = document.getElementById("type-filter");
   const flagSel = document.getElementById("flag-filter");
+  const prioritySel = document.getElementById("priority-filter");
   [...new Set(items.map(i => i.type).filter(Boolean))].sort().forEach(t => {
     const o = document.createElement("option"); o.value = t; o.textContent = t; typeSel.appendChild(o);
   });
   Object.keys(STATUS).forEach(f => {
     const o = document.createElement("option"); o.value = f; o.textContent = f; flagSel.appendChild(o);
+  });
+  Object.keys(PRIORITY).forEach(p => {
+    const o = document.createElement("option"); o.value = p; o.textContent = p; prioritySel.appendChild(o);
   });
 }
 
@@ -248,21 +272,25 @@ function currentFilters() {
     q: document.getElementById("search").value.trim().toLowerCase(),
     type: document.getElementById("type-filter").value,
     flag: document.getElementById("flag-filter").value,
+    priority: document.getElementById("priority-filter").value,
   };
 }
 
 function renderTable() {
-  const { q, type, flag } = currentFilters();
+  const { q, type, flag, priority } = currentFilters();
   let rows = ITEMS.filter(i => {
     if (type && i.type !== type) return false;
     if (flag && !(i.actionFlag || "").includes(flag)) return false;
+    if (priority && i.priority !== priority) return false;
     if (q && !((i.title || "").toLowerCase().includes(q) || (i.link || "").toLowerCase().includes(q))) return false;
     return true;
   });
 
+  rows.forEach(i => { i.priorityOrder = priorityFor(i.priority).order; });
+
   rows.sort((a, b) => {
     let av = a[sortKey], bv = b[sortKey];
-    if (sortKey === "composite") { av = Number(av) || 0; bv = Number(bv) || 0; }
+    if (sortKey === "composite" || sortKey === "priorityOrder") { av = Number(av) || 0; bv = Number(bv) || 0; }
     else { av = (av || "").toString().toLowerCase(); bv = (bv || "").toString().toLowerCase(); }
     if (av < bv) return -1 * sortDir;
     if (av > bv) return 1 * sortDir;
@@ -273,23 +301,25 @@ function renderTable() {
   document.getElementById("empty").style.display = rows.length ? "none" : "block";
   tbody.innerHTML = rows.map((item, idx) => {
     const st = statusFor(item.actionFlag);
+    const pr = priorityFor(item.priority);
     return `
     <tr class="item-row" data-idx="${idx}">
       <td class="title-cell"><a href="${item.link}" target="_blank" rel="noopener">${item.title || item.link}</a></td>
       <td>${item.type || "—"}</td>
       <td class="num">${item.composite !== "" ? item.composite : "—"}</td>
       <td><span class="flag"><span class="dot" style="background:${st.color};"></span>${item.actionFlag || "—"}</span></td>
+      <td>${item.priority ? `<span class="flag"><span class="dot" style="background:${pr.color};"></span>${item.priority}</span>` : "—"}</td>
       <td>${fmtDate(item.lastAudited)}</td>
     </tr>
     <tr class="detail-row" data-idx="${idx}">
-      <td colspan="5">
+      <td colspan="6">
         <div class="detail-grid">
           <div class="mini"><p class="label">SEO</p><p class="value">${item.seo ?? "—"}</p></div>
           <div class="mini"><p class="label">Brand</p><p class="value">${item.brand ?? "—"}</p></div>
           <div class="mini"><p class="label">Freshness</p><p class="value">${item.freshness ?? "—"}</p></div>
           <div class="mini"><p class="label">Readability</p><p class="value">${item.readability ?? "—"}</p></div>
           <div class="mini"><p class="label">CTA</p><p class="value">${item.cta ?? "—"}</p></div>
-          <div></div>
+          <div class="mini"><p class="label">Impact / Effort</p><p class="value" style="font-size:14px;">${item.impact || "—"} / ${item.effort || "—"}</p></div>
         </div>
         <p class="notes">${item.notes || ""}</p>
         <ul class="suggestions">${(item.suggestions || []).map(s => `<li>${s}</li>`).join("")}</ul>

@@ -39,11 +39,21 @@ suggestions can be an empty list. Below 80, give 3-5 suggestions ordered by expe
 targeting 'cloud-based access control for schools' — none currently exists" rather than
 "improve SEO").
 
+If there are any suggestions, also rate the suggested work as a whole on two dimensions, so
+low-effort/high-value fixes can be triaged first:
+- impact: "High" if implementing these suggestions would meaningfully move SEO, conversion,
+  brand accuracy, or credibility; "Low" if it's a minor/cosmetic improvement.
+- effort: "Low" if this is a same-day copy/metadata edit with no new assets, research, or
+  design needed; "High" if it requires new content creation (e.g. a rewrite, new case study
+  data, design work, or engineering).
+Leave impact and effort as empty strings if there are no suggestions (composite 80+).
+
 Respond ONLY with valid JSON, no markdown fences, in this exact shape:
 {{"seo_score": int, "brand_score": int, "freshness_score": int, "readability_score": int, \
 "cta_score": int, "composite_score": int, "action_flag": "Retain|Optimize|Update|Refresh", \
 "notes": "1-2 sentence summary of the biggest issue and biggest strength", \
-"suggestions": ["suggestion 1", "suggestion 2", ...]}}
+"suggestions": ["suggestion 1", "suggestion 2", ...], \
+"impact": "High|Low|", "effort": "Low|High|"}}
 
 Title: {title}
 Type: {content_type}
@@ -51,6 +61,22 @@ Last Updated: {last_updated}
 Content:
 {content}
 """
+
+
+# Priority is computed here, not trusted to the model's own judgment call,
+# so it's applied consistently across every asset rather than drifting
+# call-to-call. Classic impact/effort quadrant: "low hanging fruit" is
+# High impact + Low effort.
+PRIORITY_MATRIX = {
+    ("High", "Low"): "Quick Win",
+    ("High", "High"): "Major Project",
+    ("Low", "Low"): "Fill-In",
+    ("Low", "High"): "Low Priority",
+}
+
+
+def compute_priority(impact, effort):
+    return PRIORITY_MATRIX.get((impact, effort), "")
 
 
 def score_one(title, content_type, last_updated, content, max_chars=8000):
@@ -85,7 +111,7 @@ def main(input_csv: str, output_xlsx: str):
 
     score_cols = ["SEO Score", "Brand Score", "Freshness Score", "Readability Score",
                   "CTA Score", "Composite Score", "Action Flag", "Notes", "Suggestions",
-                  "Last Audited"]
+                  "Impact", "Effort", "Priority", "Last Audited"]
     for col in score_cols:
         # dtype=object, not the bare "" default: pandas 3.x infers a strict
         # string dtype from an empty-string column, which then rejects the
@@ -109,6 +135,11 @@ def main(input_csv: str, output_xlsx: str):
             df.at[idx, "Notes"] = result.get("notes", "")
             suggestions = result.get("suggestions", [])
             df.at[idx, "Suggestions"] = "\n".join(f"- {s}" for s in suggestions) if suggestions else ""
+            impact = result.get("impact", "") or ""
+            effort = result.get("effort", "") or ""
+            df.at[idx, "Impact"] = impact
+            df.at[idx, "Effort"] = effort
+            df.at[idx, "Priority"] = compute_priority(impact, effort)
         df.at[idx, "Last Audited"] = today
         time.sleep(0.5)  # gentle rate limiting
 
