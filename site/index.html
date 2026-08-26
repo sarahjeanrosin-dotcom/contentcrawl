@@ -86,6 +86,16 @@
   .bar-fill { height: 100%; border-radius: 4px; min-width: 4px; }
   .bar-count { font-size: 13px; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
+  .tabs { display: flex; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid var(--gridline); }
+  .tab-btn {
+    background: none; border: none; cursor: pointer; font-family: inherit;
+    font-size: 14px; font-weight: 600; color: var(--text-secondary);
+    padding: 10px 4px; margin-bottom: -1px; border-bottom: 2px solid transparent;
+  }
+  .tab-btn:hover { color: var(--text-primary); }
+  .tab-btn.active { color: var(--text-primary); border-bottom-color: var(--text-primary); }
+  .tab-btn + .tab-btn { margin-left: 14px; }
+
   .controls { display: flex; gap: 10px; flex-wrap: wrap; margin: 28px 0 14px; }
   .controls input, .controls select {
     background: var(--surface-1); color: var(--text-primary);
@@ -108,6 +118,7 @@
   td.title-cell a { color: var(--text-primary); text-decoration: none; }
   td.title-cell a:hover { text-decoration: underline; }
   td.num { font-variant-numeric: tabular-nums; text-align: right; }
+  td.type-cell { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .flag {
     display: inline-flex; align-items: center; gap: 6px;
@@ -137,11 +148,16 @@
   <header class="top">
     <div>
       <h1>Genea Content Audit</h1>
-      <p class="subtitle">Quarterly marketing content scorecard — SEO, brand, freshness, readability, CTA</p>
+      <p class="subtitle" id="subtitle"></p>
       <p class="source" id="source"></p>
     </div>
     <a class="btn" id="download-btn" href="scored_latest.csv" download>Download CSV</a>
   </header>
+
+  <div class="tabs" id="tabs">
+    <button class="tab-btn active" data-tab="marketing">Marketing Surface</button>
+    <button class="tab-btn" data-tab="gated">Gated Asset Quality</button>
+  </div>
 
   <div class="overview" id="overview"></div>
 
@@ -157,7 +173,7 @@
       <thead>
         <tr>
           <th data-key="title">Title</th>
-          <th data-key="type">Type</th>
+          <th data-key="type" id="type-th">Type</th>
           <th data-key="composite" class="num">Score</th>
           <th data-key="actionFlag">Action</th>
           <th data-key="priorityOrder">Priority</th>
@@ -198,6 +214,47 @@ function priorityFor(p) {
   return PRIORITY[p] || { color: "var(--text-muted)", order: 9 };
 }
 
+// Two tabs, two independent rubrics -- see build_gated_content.py /
+// score_gated_assets.py for why the gated tab has different score axes
+// (accuracy/brand/sales usability/substance/next-step, no SEO factor) and
+// no meaningful "type" facet (it's SharePoint source path instead).
+const CONFIG = {
+  marketing: {
+    label: "Marketing Surface",
+    subtitle: "Quarterly marketing content scorecard — SEO, brand, freshness, readability, CTA",
+    json: "data.json",
+    csv: "scored_latest.csv",
+    typeKey: "type",
+    typeLabel: "Type",
+    showTypeFilter: true,
+    scoreFields: [
+      { key: "seo", label: "SEO" },
+      { key: "brand", label: "Brand" },
+      { key: "freshness", label: "Freshness" },
+      { key: "readability", label: "Readability" },
+      { key: "cta", label: "CTA" },
+    ],
+  },
+  gated: {
+    label: "Gated Asset Quality",
+    subtitle: "Gated whitepapers & eBooks, scored on the real PDF content — accuracy, brand, sales usability, substance, next-step clarity",
+    json: "gated_data.json",
+    csv: "gated_scored_latest.csv",
+    typeKey: "source",
+    typeLabel: "Source",
+    showTypeFilter: false,
+    scoreFields: [
+      { key: "accuracy", label: "Accuracy" },
+      { key: "brand", label: "Brand" },
+      { key: "salesUsability", label: "Sales Usability" },
+      { key: "substance", label: "Substance" },
+      { key: "nextStep", label: "Next Step" },
+    ],
+  },
+};
+
+let DATA = {};       // tab -> payload from json
+let activeTab = "marketing";
 let ITEMS = [];
 let sortKey = "composite";
 let sortDir = -1;
@@ -253,15 +310,24 @@ function renderOverview(items) {
 }
 
 function populateFilters(items) {
+  const cfg = CONFIG[activeTab];
   const typeSel = document.getElementById("type-filter");
   const flagSel = document.getElementById("flag-filter");
   const prioritySel = document.getElementById("priority-filter");
-  [...new Set(items.map(i => i.type).filter(Boolean))].sort().forEach(t => {
-    const o = document.createElement("option"); o.value = t; o.textContent = t; typeSel.appendChild(o);
-  });
+
+  typeSel.innerHTML = `<option value="">All ${cfg.typeLabel.toLowerCase()}s</option>`;
+  typeSel.style.display = cfg.showTypeFilter ? "" : "none";
+  if (cfg.showTypeFilter) {
+    [...new Set(items.map(i => i[cfg.typeKey]).filter(Boolean))].sort().forEach(t => {
+      const o = document.createElement("option"); o.value = t; o.textContent = t; typeSel.appendChild(o);
+    });
+  }
+
+  flagSel.innerHTML = `<option value="">All action flags</option>`;
   Object.keys(STATUS).forEach(f => {
     const o = document.createElement("option"); o.value = f; o.textContent = f; flagSel.appendChild(o);
   });
+  prioritySel.innerHTML = `<option value="">All priorities</option>`;
   Object.keys(PRIORITY).forEach(p => {
     const o = document.createElement("option"); o.value = p; o.textContent = p; prioritySel.appendChild(o);
   });
@@ -277,9 +343,10 @@ function currentFilters() {
 }
 
 function renderTable() {
+  const cfg = CONFIG[activeTab];
   const { q, type, flag, priority } = currentFilters();
   let rows = ITEMS.filter(i => {
-    if (type && i.type !== type) return false;
+    if (type && i[cfg.typeKey] !== type) return false;
     if (flag && !(i.actionFlag || "").includes(flag)) return false;
     if (priority && i.priority !== priority) return false;
     if (q && !((i.title || "").toLowerCase().includes(q) || (i.link || "").toLowerCase().includes(q))) return false;
@@ -302,10 +369,11 @@ function renderTable() {
   tbody.innerHTML = rows.map((item, idx) => {
     const st = statusFor(item.actionFlag);
     const pr = priorityFor(item.priority);
+    const typeVal = item[cfg.typeKey] || "";
     return `
     <tr class="item-row" data-idx="${idx}">
       <td class="title-cell"><a href="${item.link}" target="_blank" rel="noopener">${item.title || item.link}</a></td>
-      <td>${item.type || "—"}</td>
+      <td class="type-cell" title="${typeVal}">${typeVal || "—"}</td>
       <td class="num">${item.composite !== "" ? item.composite : "—"}</td>
       <td><span class="flag"><span class="dot" style="background:${st.color};"></span>${item.actionFlag || "—"}</span></td>
       <td>${item.priority ? `<span class="flag"><span class="dot" style="background:${pr.color};"></span>${item.priority}</span>` : "—"}</td>
@@ -314,11 +382,7 @@ function renderTable() {
     <tr class="detail-row" data-idx="${idx}">
       <td colspan="6">
         <div class="detail-grid">
-          <div class="mini"><p class="label">SEO</p><p class="value">${item.seo ?? "—"}</p></div>
-          <div class="mini"><p class="label">Brand</p><p class="value">${item.brand ?? "—"}</p></div>
-          <div class="mini"><p class="label">Freshness</p><p class="value">${item.freshness ?? "—"}</p></div>
-          <div class="mini"><p class="label">Readability</p><p class="value">${item.readability ?? "—"}</p></div>
-          <div class="mini"><p class="label">CTA</p><p class="value">${item.cta ?? "—"}</p></div>
+          ${cfg.scoreFields.map(f => `<div class="mini"><p class="label">${f.label}</p><p class="value">${item[f.key] ?? "—"}</p></div>`).join("")}
           <div class="mini"><p class="label">Impact / Effort</p><p class="value" style="font-size:14px;">${item.impact || "—"} / ${item.effort || "—"}</p></div>
         </div>
         <p class="notes">${item.notes || ""}</p>
@@ -336,16 +400,37 @@ function renderTable() {
   });
 }
 
-function init(payload) {
+function switchTab(tab) {
+  activeTab = tab;
+  const cfg = CONFIG[tab];
+  const payload = DATA[tab] || { items: [] };
   ITEMS = payload.items || [];
+
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.getAttribute("data-tab") === tab));
+  document.getElementById("subtitle").textContent = cfg.subtitle;
   document.getElementById("source").textContent = payload.source ? `Data source: ${payload.source}` : "";
+  document.getElementById("download-btn").href = cfg.csv;
+  document.getElementById("type-th").textContent = cfg.typeLabel;
+  document.getElementById("type-th").setAttribute("data-key", cfg.typeKey);
+
+  document.getElementById("search").value = "";
+  sortKey = "composite";
+  sortDir = -1;
+
   renderOverview(ITEMS);
   populateFilters(ITEMS);
   renderTable();
+}
+
+function init() {
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => switchTab(btn.getAttribute("data-tab")));
+  });
 
   document.getElementById("search").addEventListener("input", renderTable);
   document.getElementById("type-filter").addEventListener("change", renderTable);
   document.getElementById("flag-filter").addEventListener("change", renderTable);
+  document.getElementById("priority-filter").addEventListener("change", renderTable);
 
   document.querySelectorAll("thead th[data-key]").forEach(th => {
     th.addEventListener("click", () => {
@@ -355,11 +440,18 @@ function init(payload) {
       renderTable();
     });
   });
+
+  switchTab("marketing");
 }
 
-fetch("data.json")
-  .then(r => r.json())
-  .then(init)
+Promise.all([
+  fetch("data.json").then(r => r.json()),
+  fetch("gated_data.json").then(r => r.json()).catch(() => ({ items: [] })),
+])
+  .then(([marketing, gated]) => {
+    DATA = { marketing, gated };
+    init();
+  })
   .catch(err => {
     document.getElementById("overview").innerHTML =
       `<div class="card" style="grid-column:1/-1;">Couldn't load data.json (${err}). Run build_site.py and redeploy.</div>`;

@@ -1,0 +1,402 @@
+"""
+One-time script: writes data/gated_pdf_content.json from the real PDF text
+pulled from SharePoint (via the Microsoft 365 connector, in a live session)
+for the 26 gated whitepapers/eBooks that extract_content.py can't reach on
+its own (they're behind a JS-driven HubSpot form with no static link).
+
+This is a manual capture, not an automated crawl -- SharePoint access
+requires an authenticated connector session, so this file is the bridge:
+run once after pulling the real content, and score_gated_assets.py reads
+its output from then on.
+"""
+
+import json
+
+# link = the getgenea.com/downloads/... landing page URL (matches the Link
+# column in data/with_content_2026-Q3.csv), so this maps 1:1 back to the
+# existing inventory row.
+GATED_ASSETS = [
+    {
+        "link": "https://www.getgenea.com/downloads/why-centralized-security-is-necessary/",
+        "title": "A Single Pane of Glass: Why Centralized Security is Necessary",
+        "sharepoint_source": "Sales2/SALES Main Folder/Content/Whitepapers/Whitepaper - A Single Pane of Glass (Why centralizing security is necessary).pdf",
+        "text": """Genea Security getgenea.com COPYRIGHT © GENEA A Single Pane of Glass: Why Centralized Security is Necessary
+Physical security is the barrier separating the outside world from your most valuable assets. From enterprises and commercial real estate buildings to schools and hospitals, they all depend on the cameras and notifications, software and hardware solutions that make up physical security. But a seismic shift, a transformation of sorts, is happening, and this metamorphosis is increasing efficiency, strengthening security and driving IT and security teams to reevaluate how they manage their systems.
+In this whitepaper, we will explore how security is evolving, how you can centralize your systems behind a single pane of glass and why so many are embracing the shift in security.
+WHAT IS PHYSICAL SECURITY AND WHY IS IT ESSENTIAL?
+Physical security is comprised of the various techniques and technologies that keep property, people and assets safe. Today, some of the most important technologies involve computer software. Commercial real estate firms, enterprises, schools, hospitals and more have integrated their hardware with software platforms used to collect data about door use, monitor access points and make sure only the people who need access to a facility have it. Systems include: Door access control, Video management, Identity management, Communication/Notification, Visitor management.
+Today, with a greater variety of risks threatening the workplace, those responsible for physical security depend on multiple systems to provide well-rounded, multipoint security. With so many security solutions available, teams must divide their time -- managing multiple systems on a daily basis.
+Sage Realty, a commercial real estate firm in New York, NY, experienced these redundancies firsthand. Sage's director of tenant experience described the Lenel S2 system as "fragmented" and "siloed." Consequently, their database contained many duplicate users, and in some cases, a single user's credentials appeared in the system as many as four times. Sage chose to replace the on-prem system with cloud-based access control. "The workflow for adding a new [user] is a massive improvement over the way we would do things with our old legacy system," said Alec Fomin, director of tenant experience at Sage, about cloud access control.
+THE SOLUTION TO DISPARATE SYSTEMS
+The answer comes down to integrations. With traditional access control, integrations would take a long time to develop and deploy. However, cloud-based systems are ready for use immediately when a system gets installed.
+HOW COMPANIES ARE BENEFITING FROM CENTRALIZED SECURITY
+Pepsi G&J -- a production, bottling, marketing and distribution branch of Pepsi-Cola -- has already centralized their security with the cloud, connecting Genea Security and Azure Active Directory. "Now when we disable your user account, your physical access is disabled as well," said Hannah Holscher, Digital Technology Support Administrator at G&J. "That's 60 hours a year we're saving just in badge creation." The enterprise also integrated their access control and Cisco Meraki video management platforms. "If there's a question about somebody badging into a food sensitive area, we can just click on a link within the Genea portal and see if it's a problem," Holscher said.
+CENTRALIZING YOUR SECURITY
+By centralizing your security through cloud-based access control, you can improve efficiency, reduce redundancies and enhance your overall security.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/access-control-software-takeover/",
+        "title": "Access Control Software Takeover",
+        "sharepoint_source": "Sales2/SALES Main Folder/Content/One Sheets/Access Control Takover One Sheet.pdf (one-page one-sheet, not a full whitepaper)",
+        "text": """COPYRIGHT © GENEA getgenea.com
+Migrating From On-Prem to Cloud Security: Cut Costs with a Mercury Takeover
+Good news! Upgrading your on-prem access control system to the cloud might be less expensive than you think. Before spending capital to replace your current access control hardware, check if your system is listed below. If it is, you may be able to skip installing new hardware and instead perform a Mercury Takeover.
+What's a Mercury Takeover?
+A Mercury Takeover is a simple, cost-effective software reconfiguration. Instead of installing all new hardware when upgrading to the cloud, Genea can help you reconfigure your master Mercury controller. No ripping and replacing necessary!
+Why choose a Mercury Takeover with Genea?
+Cost-Effective -- Save on capital expenditure by opting for a Mercury Takeover instead of investing in entirely new hardware.
+Efficiency Redefined -- Streamline your migration process with a hassle-free software reconfiguration, eliminating the need for extensive hardware installations.
+Expert Guidance -- Our experienced team at Genea is ready to guide you through the process, ensuring a seamless transition to cloud security.
+Genea can take over any of these systems: [system logo list, not extracted as text]""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/access-control-for-class-a-office-buildings/",
+        "title": "Access Control For Class A Office Buildings",
+        "sharepoint_source": "Marketing/CONTENT/Whitepapers/Access Control for Class A Office Buildings.pdf",
+        "text": """getgenea.com COPYRIGHT © GENEA 2023 Access Control For Class A Office Buildings
+KEY GOALS FOR YOUR BUILDINGS
+Building owners must create Class A, tenant experiences that add value and incentivize tenants to continue leasing space. Cost management is critical to improving NOI and provides a return to ownership. Provide systems that integrate seamlessly with other building systems to drive greater operating efficiency. Risk management ensures smooth building operation that does not interfere with tenant operations.
+THREE CONSIDERATIONS WHEN CHOOSING AN ACCESS CONTROL SYSTEM
+On-premises or cloud-based. Proprietary or non-proprietary hardware. Closed system or open API.
+ACCESS CONTROL EVALUATION
+Tenant Experience -- On-prem systems require significantly more manual labor for amenities. Cloud-based systems, like Genea Access Control, have natively integrated mobile access and integrations with best-in-class tenant engagement apps, like HQO, Rise and Lane.
+Cost and Risk Management -- Providers of on-premises and proprietary systems often hide their true costs behind lower contract values. Non-proprietary systems that are Mercury-based can be switched easily from one software to another, and many integrators can service them.
+Operating Efficiency -- On-prem systems are often old, outdated and provide access only while at the building. Genea Building Sync enables tenants to add and remove employee keys from the access control system automatically. This eliminates work from the property team, improves building security, avoids expensive service contracts, and gives tenants a much better experience.
+getgenea.com COPYRIGHT © GENEA 2023
+ON-PREMISES AND PROPRIETARY SYSTEMS ARE COSTLY, ADDING HIDDEN SERVICE AND INTEGRATION FEES. THESE SYSTEMS CAUSE MORE MANUAL LABOR AND LOCK CUSTOMERS INTO PROVIDERS. ULTIMATELY, THEY PREVENT BUILDING TEAMS FROM PROVIDING A WORLD-CLASS TENANT EXPERIENCE.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/5-key-elements-for-a-touchless-access-control-building/",
+        "title": "5 Key Elements for a Touchless Access Control Building",
+        "sharepoint_source": "Marketing/CONTENT/Whitepapers/5 Key Elements for a Touchless Access Control Building.pdf",
+        "text": """getgenea.com COPYRIGHT © GENEA 5 Key Elements for a Touchless Access Control Building
+One buzzword that appears all over blogs and webinars is "touchless access control." However, what does that really mean? While the world is dealing with the fallout of Covid-19, many people are seizing this opportunity to make necessary changes to the way they run their businesses. Office buildings are no different! This is a rare opportunity to implement long overdue changes to a building's access control and visitor management systems because daily occupancy is at all-time lows.
+Touchless access control is a catch-all phrase for a system of technology and process changes that allow both tenant and guests to enter a building securely without physically touching anything. Five elements:
+1. A cloud-based security management system is the foundation for all touchless systems.
+2. Embrace mobile access credentials for both tenants and guests. Tenants can use their phone as a key card, while guests can use QR codes and hyperlinks for check-in.
+3. Visitor pre-registration will allow you to screen guests before they show up to the building, which means no more crowding in the lobby.
+4. For buildings with destination dispatch, you need to start using home-floor assignments for guests to enable touchless elevator access.
+5. Educating tenants is critical -- get your tenant admins to help educate their employees about why these policies and technologies are for their benefit.
+Schedule a demo today and learn how Genea's software combines touchless access control and visitor management in one easy-to-use, cloud-based platform.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/all-you-need-to-know-about-submetering/",
+        "title": "All You Need to Know About Submetering",
+        "sharepoint_source": "Marketing/CONTENT/Whitepapers/All You Need to Know About Submetering- Whitepaper.pdf (modified Dec 2025)",
+        "text": """Submeter Billing getgenea.com COPYRIGHT © GENEA All You Need to Know About Submetering
+Submetering helps property teams accurately allocate costs of building utilities to their tenants. In this brief guide, readers will learn how utility submetering works, why it's beneficial and how to get started with submeter billing.
+ESG, sustainability and energy efficiency are complex concepts that often require complex solutions. When it comes strictly to tracking energy consumption and properly allocating utility costs, the solution is much simpler -- enter submeter billing.
+Submetering is the process of installing individual meters to record energy consumption within a given area. In some cases, installing a submeter may be too expensive; instead, "ratio utility billing" (RUBS) calculates utility bills based on formulas.
+WHAT CAN YOU SUBMETER? Electricity, Water, Gas, BTU, Data.
+WHY SUBMETER? Precision and simplicity -- rollovers and multipliers can be automatically calculated, invoices can be generated. Submeter billing assists commercial property teams in reducing energy consumption and cutting costs; if an energy leak occurs, building teams can better pinpoint the location.
+HOW DOES A SUBMETER WORK? A submeter works much like a standard building meter, connected to a utility such as electricity; as electricity travels to the suite, it passes through the meter, which records it.
+Automate Your Submeter Billing & Reading -- Genea helps teams implement and automate their submeter billing through cloud-based software, providing intuitive technology for manual and networked meters.
+ACCOUNTING FOR EXPENSES, ACCURATE TENANT BILLING, REDUCING UTILITY COSTS, ABIDING BY FEDERAL AND STATE ENERGY REGULATIONS, REDUCING CARBON OUTPUT""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/resources-whitepapers-cloud-vs-on-prem-access-control-guide/",
+        "title": "Cloud vs On-Prem Access Control - Decision Guide",
+        "sharepoint_source": "Marketing/DEMAND GEN/Campaign Assets/Modernization in Motion_Q2 2026/Guide - Cloud vs On-Prem Access Control.pdf (modified Jun 2026 -- newest gated asset found)",
+        "text": """The Honest Guide to A decision framework for security and IT leaders evaluating modernization. COPYRIGHT © GENEA getgenea.com | sales@getgenea.com
+Cloud vs On-Prem Access Control
+If you've worked in physical security for any length of time, you've watched technology decisions go badly. The cloud vs on-prem conversation has been muddied by a decade of vendor marketing from both sides. This guide is a framework for evaluating the decision rigorously, including the cases where on-prem still makes sense.
+A Framework for the Decision -- five dimensions: Reliability and uptime. Security posture. Total cost of ownership. Scalability and change management. Strategic flexibility.
+The Myths Worth Examining:
+Myth 1: "If we lose internet or power, we lose access control." Modern cloud-native access control runs on edge-enabled controllers that continue operating independently when connectivity drops. Cloud-native systems with edge intelligence and offline capability are typically more resilient than legacy on-prem deployments, not less.
+Myth 2: "Cloud is less secure than something we control ourselves." An on-prem server maintained by a stretched IT team, patched on an inconsistent schedule, is almost always less secure than a SOC 2 compliant cloud platform with full-time security teams. Most on-prem access control servers in the field today are running outdated operating systems, are missing critical patches, and have not been penetration tested in years.
+Myth 3: "Cloud is for small offices. Enterprise needs on-prem." Some of the largest, most security-sensitive organizations in the world run cloud-native access control across hundreds of sites and tens of thousands of users. Criteria to evaluate: SOC 2 Type II compliance, identity provider integration, API maturity, multi-site management capabilities.
+Myth 4: "We'll lose our data or get locked into the vendor." Ask any cloud vendor: What's your data export policy? Is your API openly documented? What hardware ecosystems do you support, and is any of it proprietary?
+Myth 5: "We can't customize cloud the way we can customize our on-prem system." Open cloud platforms with mature APIs typically offer more genuine customization capability than closed on-prem systems. Systems built on open standards like Mercury hardware let you change software platforms without ripping out controllers.
+Where On-Prem Still Genuinely Makes Sense: Air-gapped or classified environments. Facilities with no reliable internet connectivity and no path to getting it. Recent major on-prem capex investment with clear amortization runway.
+The Diagnostic: 18 questions across Reliability and Uptime, Security Posture, Total Cost of Ownership, Scalability and Change Management, and Strategic Flexibility -- designed to be answered by IT, physical security, facilities, and the executive sponsor together, surfacing where visibility is weakest, where teams disagree, and where the architecture itself is the constraint.
+What to Do Next: If leaning toward cloud, understand what a responsible migration looks like -- Genea's Migration Readiness Checklist covers the hardware audit, stakeholder alignment, and execution planning needed before a vendor decision.
+HOW GENEA APPROACHES THIS: Open hardware support through Mercury, open and fully documented APIs, SOC 2 Type II compliance, native identity provider integration, and no proprietary lock-in.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/driving-value-with-process-automation/",
+        "title": "Driving Value with Process Automation",
+        "sharepoint_source": "Marketing/CONTENT/eBooks/eBook - Driving Value with Process Automation.pdf",
+        "text": """getgenea.com COPYRIGHT © GENEA eBook Driving Value with Process Automation
+Property teams are doing more than ever. Technology can help lighten the load, but only if it's the right technology, fixing real problems. This eBook will help you identify the processes at your building that could benefit from automation and how to evaluate a solution to improve them.
+THE INCREASING WORKLOAD OF PROPERTY MANAGEMENT TEAMS: Property management teams are overworked, managing larger portfolios with smaller teams, while tenant expectations increase.
+THE ROLE TECHNOLOGY IS CURRENTLY PLAYING: CRE is notoriously slow to embrace new technology, and some tech overloads teams with unnecessary data. New technology can be a huge investment in cost and time.
+THE RESULT: Many property teams try to use tech they already have to solve additional problems it isn't meant to solve (like a work order system managing HVAC requests). Most end up using a patchwork of spreadsheets.
+BIGGEST TIME SINKS: 1. On-Demand HVAC Requests -- manual programming, tracking billing in spreadsheets, tenants circumventing the system after hours. 2. Submeter Reading and Billing -- manual clipboard readings, error-prone spreadsheets, no audit trail. 3. Tenant Communications -- inconsistent, gatekept by office managers.
+FIXING IT: Identify the problem processes via time tracking. Identify the solution -- don't force an existing tool to do a job it wasn't designed for.
+Genea's Software Solutions: ON-DEMAND HVAC -- automates requests, fulfillment, tenant billing, integrates with accounting software. SUBMETER BILLING -- streamlines meter reads, generates invoices, integrates with accounting software. GENEA SECURITY -- cloud-based access control using existing hardware with smartphone credentials.
+EVALUATING A VENDOR: Who have they worked with? How long have they been doing this? What problems is their tool designed to solve? Does it require upfront cost? What's the learning curve? How does it fit within your ecosystem?
+FINAL TAKEAWAYS: Focus on the biggest problems facing your team. Adoption and usage of a tool is critical to its impact. Start somewhere -- pick one problem and start looking into it.
+Contact Us: +1 (714) 694-0536, help.getgenea.com, support@getgenea.com, 19100 Von Karman Ave. Suite 550, Irvine, CA 92612""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/genea-and-building-management-systems/",
+        "title": "Genea and Building Management Systems",
+        "sharepoint_source": "STALE -- only copy found anywhere in SharePoint is from 2019 (Marketing/ALL MARKETING ARCHIVE/zArchived Marketing). No current version exists. Confirmed with Sarah as a known stale asset.",
+        "text": """19100 VON KARMAN AVE, SUITE 550 - IRVINE, CA 92612 - GETGENEA.COM INFO@GETGENEA.COM - 714.694.0536 GENEA AND BUILDING MANAGEMENT SYSTEMS
+Genea is designed to be system-agnostic, working with a wide variety of systems and setups. A small Genea device acts as a gateway between our platform and your BMS. It allows the Genea platform to see the points in your system and works with your protocols to deliver overtime HVAC to tenants. The device has 2 network connections to allow it to connect to BMS networks that are not on the internet or are on separate networks, plus RS 232 & 485 for serial comms-based systems.
+Our device requires internet connectivity for outbound-only communications, no inbound firewall ports are requested. The EMS does NOT need to be on the internet for Genea's software to work.
+Once connected, our platform uses override points to fulfill overtime HVAC requests. Our platform generally commands at Priority 8 (BACnet) or Operator (Siemens & JCI), Supervisor (Carrier). Our platform can be as granular and specific as your BMS is.
+WHAT PROTOCOLS DOES GENEA SUPPORT? Any BACnet IP & Ethernet (including BBMDs), Siemens S600 & Apogee, Carrier DDE, JCI Metasys DDE & XML, JCI serial, Lonworks, Modbus TCP & RTU, OPC, Andover Infinity, XML, Opto 22 Serial.
+SUPPORTED: Anything BACnet IP or Ethernet, Anything Siemens (System 600, Apogee, Desigo), Andover (NetController II, Infinity CX, Continuum), Schneider Struxware, Trane BCU or ES, JCI (NCM, NIE, NAE, NCE, FX), Tridium Jace (or clone of), Automated Logic (LGE, LGR), KMC OPC, iLon, Honeywell.
+POTENTIALLY SUPPORTED: iNet 7 (without Xentha 913), BACnet Arcnet (coax cable).
+NOT SUPPORTED: Barrington, Andover AC8 & AC256, DMS 3500, Honeywell XL.
+SECURITY: We maintain the highest levels of security for our software and hardware. The Genea platform communicates with the Genea onsite device via a 128 bit encrypted VPN tunnel. Our data center is SSAE-16, HIPAA, PCI, SOC 1, and SOC 2 compliant.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/genea-and-different-mechanical-setups/",
+        "title": "Genea and Different Mechanical Systems",
+        "sharepoint_source": "Marketing/CONTENT/archive/ebook, Case Studies, Whitepapers, One sheets/2024/one sheets/Genea & Different Mechanical Systems.pdf (newest copy: 2023-24, still an archive-labeled folder)",
+        "text": """Overtime HVAC and Different Mechanical Systems getgenea.com COPYRIGHT © GENEA 2024
+Genea simply works alongside existing equipment schedules, controlling systems via the BMS. So if the BMS has a schedule to turn on a system, then Genea will have a point to turn on that system.
+HOW DOES GENEA HANDLE MINIMUM LOAD? Genea will activate as many points as part of a request to satisfy minimum load requirements. Our team works with the engineering team during implementation to understand the mechanical systems.
+HOW DOES GENEA HANDLE MINIMUM RUN TIME? Genea can be set up so that once a request is made, it cannot be canceled within a minimum time period.
+HOW DOES GENEA ENSURE THAT A FAN OR OTHER EQUIPMENT WON'T TURN ON WHILE BEING SERVICED? Genea's software follows BMS protocols including lock-out-tag-out procedures. The system can place a notice in the UI when equipment is down for maintenance.
+HOW GRANULAR OF CONTROL DOES GENEA HAVE ON MY EQUIPMENT? As granular as your mechanical and BMS systems, including at the VAV level.
+HOW DOES GENEA HELP ME SAVE ENERGY AND MONEY? Our Overtime HVAC platform allows equipment to run only when needed.
+WHAT IF NOT ALL OF MY EQUIPMENT IS CONTROLLED BY MY BMS? Genea provides an easy way for tenants to submit and review requests; the Building Engineer receives an email for manual adjustments while Genea works through the BMS on the automated portion.
+WHAT HAPPENS IF A REQUEST FAILS? Genea's software monitors building equipment around the clock and our US-based support team is available 24/7 via phone or email.
+Genea's platform is hardware agnostic, working with: Central Plants, Chillers/Pony Chillers, Heat Pumps, Isolation Dampers, Direct Digital Control, Boilers, Cooling Towers, Fans Only, Package Units, Pneumatic Zones, Condensed Water, Variable Air Volume (VAV) Boxes.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/physical-access-control/",
+        "title": "Getting Started with Physical Access Control",
+        "sharepoint_source": "Marketing/CONTENT/eBooks/eBook - Physical Access Control.pdf",
+        "text": """getgenea.com COPYRIGHT © GENEA eBook Getting Started With Physical Access Control
+PURPOSE OF THIS GUIDE: Installing and evaluating a new access control system can be stressful. This guide answers: What is physical access control? What hardware components are required? Is my office already equipped? How do I replace my current keycard system?
+What is Physical Access Control? Restricting the ability to enter a property to authorized users only. Modern systems use electronic door locks and computers to decide who has valid access based on a presented credential.
+Types of keys: physical key cards, key fobs, transmitters, RFID bracelets, phone or smartwatch, fingerprint or iris. NFC and BLE enabled smartphones are increasingly becoming the most efficient credential.
+TWO-FACTOR AUTHENTICATION (2FA): card swipe plus something the user knows (PIN) or something the user is (biometric).
+Access Control Security System Components: electronic lock, reader, request-to-exit button/sensor, door monitor. Genea stores access information both locally on the master controller and in the cloud -- functions offline, always installed with backup power.
+How to Adopt a New Security System: Step 1: Free Site Survey. Step 2: Hardware Delivered. Step 3: Assigned a Dedicated Onboarding Specialist. Step 4: Installation and Support. Step 5: Training and Support.
+About Genea: cloud-based access control system, intuitive, open, accountable, responsive. API integrations with Okta, Active Directory, and OneLogin.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/how-to-select-a-physical-security-platform-for-educational-institutions/",
+        "title": "How to Select a Physical Security Platform for Educational Institutions",
+        "sharepoint_source": "Sales2/SALES Main Folder/Content/Whitepapers/Education Whitepaper.pdf (Genea-branded version, per Sarah's direction over the co-branded Carahsoft copy)",
+        "text": """How to Select a Physical Security Platform for Educational Institutions: Protecting Your Classrooms -- Key Security Considerations and Features. COPYRIGHT © GENEA getgenea.com
+As educational institutions face increasingly complex security challenges, choosing the right physical security platform is critical. This whitepaper covers key considerations for modern access control and how to select the right security platform.
+Your School Security Checklist:
+Integration and Compatibility -- ensure the platform integrates seamlessly with existing systems; support non-proprietary hardware to avoid a full system overhaul.
+Open Platform for Integrations -- streamlines operations, enhances effectiveness by working with other security/building management systems.
+Scalability and Flexibility -- accommodate growing needs across single or multiple campuses.
+Cost for Integrations -- evaluate integration costs and ROI.
+Mobile Bluetooth and NFC Credentials -- simplifies access, reduces reliance on physical cards.
+Cloud-Based Solutions -- remote management, scalability, reduced hardware costs, simplified updates vs. on-premises.
+Cost Efficiency -- total cost of ownership; cloud offers predictable subscription pricing.
+User Experience and Accessibility -- intuitive interface, mobile access.
+Data Security and Privacy -- encryption, secure authentication protocols, compliance.
+Real-Time Monitoring and Alerts -- automated alerts, detailed reporting.
+Compliance and Reporting -- audit trails, customizable reports.
+Proprietary vs. Non-Proprietary Hardware -- non-proprietary offers greater flexibility, cost efficiency, and futureproofing.
+Issuing Credentials to Students -- comprehensive view of who is in/out of buildings, assess privacy policy alignment.
+Strategic Steps: 1. Assess Current Systems. 2. Define Objectives. 3. Research Solutions. 4. Proof of Concept. 5. Training and Implementation. 6. Ongoing Evaluation.
+Cloud-based Access Control Security for 2025 and Beyond: Selecting the right platform is critical for institutions preparing for 2025's challenges. Now is the time to start research.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/implementing-touchless-access-control-into-your-building/",
+        "title": "Implementing Touchless Access Control into Your Building",
+        "sharepoint_source": "Marketing/CONTENT/eBooks/eBook - Implementing Touchless Access into Your Building.pdf",
+        "text": """getgenea.com COPYRIGHT © GENEA eBook Implementing Touchless Access into Your Building
+"Our dedication to service is the reason we can proudly say we have a 99% customer retention rate. By offering unparalleled customer support 24/7/365, we demonstrate our commitment to you when you need us most." 75 Net Promoter Score, 24/7/365 Support, 98% Customer Retention.
+Why We Believe Offices Will Remain Relevant: Offices provide a sense of belonging, enable collaboration, create loyalty and community.
+Risk Factors in Today's Security Environment: Visitor Management (too many common touch points), Access Control (iPads for guest registration, close staff interaction), door handles, touch-based readers, elevators.
+Visitor Management: Enable guest pre-registration, adopt mobile QR code scanning, eliminate shared iPads/tablets, don't over-complicate the human experience in the name of safety.
+Procedural Changes for Building Access: Mandatory PPE, sick people stay home, close shared amenities, queuing areas for elevators, staggered start times.
+Mobile Access: not a shared device, secure credentialing (can't be copied/shared), one-click provisioning.
+Benefits of a Cloud-based System: Easiest way to enforce procedural/systematic changes, remote management, remote door control, automatic multi-channel alerts, portfolio-wide policy enforcement.
+Touchless Elevators (Destination Dispatch and Relay-Based): mandatory home-floor assignment, hand-wave actuators, in-app floor selection.
+Door Handle Alternatives and Automatic Door Openers: costs $1200-$5000 depending on type/installation.
+Thermal Cameras: practical limitations around temperature variance, waiting areas, costs $1200-$1500+.
+Key Takeaways: low-cost solutions (foot/elbow openers, mobile credentials, PPE mandates, staggered schedules) and more advanced solutions (cloud-based touchless system across parking/turnstile/elevator, automatic door openers, destination dispatch upgrades, density counters).
+Genea's Cloud-Based Software Solutions: Genea Security, On-Demand HVAC, Submeter Billing.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/submeters-101/",
+        "title": "Learn the Facts - Submeters 101",
+        "sharepoint_source": "Marketing/CONTENT/Whitepapers/Submetering 101 - Whitepaper.pdf",
+        "text": """Submeter Billing getgenea.com COPYRIGHT © GENEA Submeters 101
+WHAT IS A SUBMETER? In almost every commercial office building, there's a master meter for each utility type. Since multiple tenants occupy each building, the landlord needs an accurate process to divide utility costs. Historically, costs were prorated by square foot -- but that's not fair when consumption differs. Submetering solves this by allocating energy costs more efficiently, billing only for what's consumed.
+HOW DOES IT WORK? Two types: networked (connected to a data collection device) and non-networked/"manual" (must be read manually each month, some technology left behind since the 1960s).
+WHY SUBMETER? Tenants become more aware of their carbon footprint; building owners gain an eco-friendlier reputation. Property teams manage energy budgets more efficiently, reduce uncontrolled consumption. Tenants become more mindful of usage. Historical data allows trend projection and abnormality detection.
+WANT SUBMETERING TO BE EASY? Genea's meter reading and billing service takes the hassle out of submetering -- works for all submeters, eliminates convoluted spreadsheets, generates professional monthly invoices.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/submeters-102/",
+        "title": "Learn the Facts - Submeters 102",
+        "sharepoint_source": "Marketing/CONTENT/Whitepapers/Submetering 102 - Whitepaper.pdf",
+        "text": """getgenea.com COPYRIGHT © GENEA Submetering 102: A Property Manager's Guide
+Becoming energy efficient costs money. Submetering is one of the best ways to collect utility usage data -- with IoT, it's more affordable and easier to implement than ever.
+Why Install Submeters? Greater billing accuracy, confirms tenants stay within lease allowances. Tenants benefit too -- once they see consumption data, they can implement green initiatives, and disputes can be resolved with an audit trail.
+Considerations Before Installation: How much detail do we want? How are we going to get information back for existing meters?
+Types of Meters: Electrical meters (measure voltage/current, use split-core CTs, straightforward install). In-line meters for gas/water (cheapest to purchase, but installation requires shutting off utility). Insertion type meters (minimal interruption via hot tap, need experienced contractor, careful placement planning). Ultrasonic flow meters (most expensive to buy, cheaper to install, but difficult setup with strict placement rules).
+Collecting Data: Manual clipboard reads are time-consuming and error prone. Better option: pulse output meters send data back to a recording service like Genea. Newer smart meters (Dent PowerScout, Triacta, Emon Dmon Class 3400) use BACnet/Modbus for more reliable, granular real-time data.
+Using the Data: Energy curves, tenant/internal billing, equipment efficiency and fault detection -- e.g. spotting a chiller working harder but still running efficiently, enabling proactive maintenance.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/nycs-local-law-97-a-guide-for-real-estate-teams-adopting-sustainability-solutions/",
+        "title": "NYC's Local Law 97: A Guide for Real Estate Teams",
+        "sharepoint_source": "Sales2/SALES Main Folder/Content/Whitepapers/CRE/Whitepaper - NYC's Local Law 97.pdf",
+        "text": """On-Demand HVAC getgenea.com COPYRIGHT © GENEA NYC's Local Law 97: A Guide for Real Estate Teams Adopting Sustainability Solutions
+Passed in 2019 as part of the Climate Mobilization Act, Local Law 97 is one of the most ambitious building emissions regulations in the world. Covers: What is Local Law 97? Who Does It Impact? Checklist: How to Comply. Why Adopt ESG Strategies? How On-Demand HVAC Helps.
+WHAT IS LOCAL LAW 97? Affects commercial buildings over 25,000 sq ft in NYC, requiring specific greenhouse gas emissions limits starting 2024, affecting 50,000+ buildings, aiming for net zero by 2050.
+WHO DOES IT IMPACT? Buildings over 25,000 sq ft account for ~2/3 of NYC's greenhouse gas emissions. Non-compliance fines are based on metric tons of CO2 above the allotted amount -- average NYC building emits 5.2 kg CO2/sq ft, so non-compliance could mean tens or hundreds of thousands in penalties annually.
+CHECKLIST: HOW TO COMPLY: Benchmarking Current Emissions, Data and Auditing, Implementing Upgrades (heating/cooling, insulation, LED, retrofits), Continuous Monitoring.
+WHY ADOPT ESG STRATEGIES? Financial Savings, Increased Property Value, Decreased Utility Costs, Reputation and Marketability.
+HOW GENEA ON-DEMAND HVAC HELPS: Automation and Efficiency (automates activation and tenant billing). Adapting to New Work Norms (hybrid schedules mean less occupancy Mon/Fri -- defaults systems to off/minimum load, tenants activate as needed via app). Significant Energy Savings (reducing HVAC runtime by 40% on low occupancy days). Enhancing the Tenant Experience (marketing properties as On-Demand enabled attracts ESG-focused tenants). Compliance with Local Law 97. Customized Automation to Meet Engineering Needs (tailored to certified-engineer requirements for central plant units in NYC's largest Class-A buildings).
+DON'T GET CAUGHT PAYING FINES: Genea On-Demand HVAC helps meet current market demands while future-proofing properties against upcoming regulations.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/overtime-hvac-and-real-life-scenarios/",
+        "title": "On-Demand HVAC and Real Life Scenarios",
+        "sharepoint_source": "Marketing/CONTENT/eBooks/eBook- ODHVAC Real Life Scenarios.pdf (original Whitepapers-folder PDF failed text extraction -- image-heavy/scanned; this is an alternate eBook copy of the same asset)",
+        "text": """On-Demand HVAC getgenea.com COPYRIGHT © GENEA On-Demand HVAC and Real Life Scenarios
+Every building is different. That's why Genea's On-Demand HVAC platform is built with the flexibility to handle a wide variety of fulfillment and billing scenarios.
+MINIMUM RUN TIME AND BILL TIME: enforce a minimum run time even if a request is cancelled early, and a minimum bill time to cover costs.
+FANS ONLY: fan-only requests billed at a lower rate, supports multiple service types.
+GOING ON-DEMAND: buildings can offer free HVAC on Saturdays/holidays per lease requirements while saving energy the rest of the time.
+MANUAL ADJUSTMENTS: where regulations require an engineer to manually adjust equipment, Genea provides the interface for requests while notifying the engineer, and still calculates invoices.
+FREE HOURS: supports negotiated free on-demand hours in leases, applied first before charges kick in.
+RECURRING REQUESTS: tenants can submit recurring requests for regular schedules (e.g. weekly partner meetings).
+OVERLAPPING REQUESTS: detects overlapping requests from the same or different tenants and follows proper billing protocol to avoid double-billing where appropriate.
+LEASE HOURS ONLY USERS: admins can restrict certain users (e.g. junior staff) to only request air during free/lease hours.
+COURTESY START: system can start running ahead of the requested time to ensure comfort by the actual start time, billable as well.
+SPLIT BILLING: rate can be split between two suites requesting air simultaneously if no additional equipment is needed.
+TIERED BILLING: multi-floor tenants can negotiate tiered rates for simultaneous multi-floor requests.
+DOUBLE BILLING: alternatively, most property teams bill each tenant the full rate regardless of concurrent requests.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/passing-through-the-cost-of-your-overtime-hvac-software-to-your-tenants/",
+        "title": "Passing Through the Cost of On-Demand HVAC Software to Tenants",
+        "sharepoint_source": "Marketing/CONTENT/archive/archive/Passing Through the Cost of Overtime HVAC Software to Your Tenants.pdf",
+        "text": """getgenea.com COPYRIGHT © GENEA 2023 Passing Through the Cost of Your Overtime HVAC Software to Your Tenants
+Ways to Fit Technology into Your Budget: Overtime HVAC automation offers a unique opportunity to pass through the cost to tenants who benefit from the service. Benefits: 1. Software cost no longer impacts operating budget. 2. Only tenants who use the software bear the cost, proportional to usage. 3. Opportunity to more than cover the software cost since convenience increases usage.
+WHAT IS OVERTIME HVAC SOFTWARE? An app/web interface for tenant after-hours HVAC requests, automatically fulfilled with auto-generated invoices, replacing a fragmented manual process.
+HOW ARE OVERTIME HVAC RATES CALCULATED? Considers energy costs, equipment depreciation, engineering costs, administrative costs -- then compared against market rates.
+This calculation presents an opportunity to build software cost into the hourly rate -- take software cost divided by expected hours of overtime air fulfilled, and either add it to existing costs or replace engineering/admin line items entirely (since automation clears those tasks from the team's plate).
+Includes an example costing spreadsheet showing equipment-related costs, other operational costs (including a Genea ACS Cloud line item), and non-operational costs totaling to a per-hour rate ($69.20 in the worked example) -- with engineering and administrative costs reduced to near-zero once Genea is installed, since the software automates the entire process from request through billing.
+This approach makes an easy case for implementing overtime HVAC software (though there are other value drivers too) -- you can pass the cost through to tenants and potentially more than pay for the investment since convenience drives additional usage.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/proprietary-vs-open-hardware/",
+        "title": "Proprietary vs. Open Hardware",
+        "sharepoint_source": "Marketing/CONTENT/Whitepapers/Proprietary vs. Open Hardware.pdf",
+        "text": """Genea Security getgenea.com COPYRIGHT © GENEA Proprietary vs. Open Hardware
+You're Being Deceived. Certain access control companies have cleverly twisted the term "open" to suit their needs. Proprietary hardware demands customers fully rip and replace controllers to upgrade software -- expensive and complex. This is one reason the access control world is 10 years behind in software evolution.
+Cloud-based systems are often called "open" because they have publicly available APIs -- but that's not what people mean when searching for open access control systems. A truly open system is like an open, BACnet-based EMS: hardware stays the same, software is interchangeable.
+So what is an open system built on? Mercury Security controllers -- used by over two dozen access control software companies since the 90s, all interchangeable without switching controllers.
+Example: A 350,000 sq ft office building with 20 doors on a legacy Avigilon system (Mercury-based) with HID Multiclass readers. Genea cost: $0. Proprietary cost: Readers 20 x $250 = $5,000, Controllers 4 x $850 = $2,600, Installation 20 x $500 = $10,000, Total: $17,600.
+It's pretty clear that open is better than proprietary -- don't be fooled by marketing gimmicks! Schedule a demo today to learn how Genea can provide your building with a truly open security and visitor management system in one easy-to-use platform.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/quantifying-the-value-of-your-after-hours-hvac-program/",
+        "title": "Quantifying the Value of Your After Hours HVAC Program",
+        "sharepoint_source": "Marketing/CONTENT/archive/archive/Quantifying the Value of Your After Hours HVAC Program.pdf",
+        "text": """getgenea.com COPYRIGHT © GENEA 2023 eBook Quantifying The Value of Your After Hours HVAC Program
+When evaluating automation, identify what's actually driving value: process efficiency, increased revenue, energy savings, tenant satisfaction.
+PROCESS EFFICIENCY: Work orders and paper forms are time-consuming, manual processes not built for the nuance of after-hours requests. Estimate time spent per request x number of requests x hourly rate to quantify labor cost of current process.
+INCREASED REVENUE: "Billing leakage" occurs when unlogged after-hours service isn't billed -- happens when tenants circumvent the work order system by calling directly, or engineers handle requests off-book. Some tenants avoid requesting service altogether to skip the hassle. Compare last-minute request frequency against 12 months of after-hours revenue to spot the gap.
+ENERGY SAVINGS: Buildings are often left running when no one is there on holidays/weekends. Check access card logs to assess true occupancy vs. assumed occupancy -- a building run as if at 70% occupancy when true occupancy is 3% wastes thousands in utility/equipment costs.
+TENANT SATISFACTION: Failed requests frustrate tenants; automated, simple processes drive retention and satisfaction (validated via before/after tenant satisfaction surveys with customers).
+These four value drivers create a compelling financial case for moving to an automated overtime HVAC workflow. A complete case study with quantifiable results is available on request.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/safe-workplace/",
+        "title": "Safe Workplace",
+        "sharepoint_source": "AllEmployees2/General/2022 Collateral/Safe Workplace.pdf",
+        "text": """getgenea.com COPYRIGHT © GENEA 2022 Safe Workplace
+Keeping people healthy and safe is a top priority for all businesses. Now you can combine Genea's Access Control technology with Safe Workplace to track, manage, and enforce capacity limits for any space.
+Safe Workplace is a safety feature built on top of Genea's Access Control and Visitor Management platform that extends into capacity planning, contact tracing, compliance and alerting, while streamlining the employee experience.
+1. Reserve Your Spot -- request access & check-in from mobile/web app.
+2. Health Questionnaire -- employee or guest fills out health screen.
+3. Approved or Denied -- receive access to specified entry points once completed.
+Features: Seamless mobile check-in/check-out, capacity settings & alerts, contact tracing & reporting, monitor activity levels, grant access with workflows, GDPR and SOC2 compliance, data collection customization, integrations with body temperature scanners.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/safeguard-the-workplace-during-and-beyond-the-covid-19-pandemic/",
+        "title": "Safeguard the Workplace During and Beyond COVID-19",
+        "sharepoint_source": "AllEmployees2/2023 Collateral/eBooks/Access Control/eBook- Occupancy Management.pdf (renamed at some point from its original title -- content confirms it's the same asset)",
+        "text": """getgenea.com COPYRIGHT © GENEA 2023 eBook Safeguard the Workplace During and Beyond the COVID-19 Pandemic
+Access Control. Occupancy Management. Contact Tracing. A Safer Workplace. Safe Workplace is layered on top of Genea's Access Control platform, allowing users to track, manage, and enforce capacity limits, including contact tracing, compliance and alerting.
+Get People Back to the Office with Safe Workplace: Employee check in/check out with a seamless mobile experience. Administrators define access hierarchies by employee, location, floor, workflow -- real-time intel on badge activity, integrated video feeds, remote deactivation, remote emergency lockdown.
+Capacity Settings and Alerts: limit people per day, enforce social distancing with occupancy thresholds, integrate with touchless visitor management. Administrators can reduce capacity from 100 to 20 with a single keystroke. Employees answer health questions before leaving home; on-site thermal sensors can deny access on high temperature. Accounts for mistakes/exceptions (health question reset requests, capacity overrides via HR/admin). Visitors pre-registered online with same health screening, temporary QR code access.
+Contact Tracing and Support: reports on who was granted/denied access, who was co-located and when -- critical for targeted contact tracing after a positive case.
+Genea and Safe Workplace adhere to GDPR, CCPA, and SOC2 compliance regulations.
+Three flagship product offerings: Submeter Billing, Overtime HVAC, Access Control.
+How We're Different: state-of-the-art open hardware platform, non-proprietary hardware (no rip-and-replace), live 24/7 customer support, no middleman -- sell and service directly, only platform designed specifically for multi-tenant offices.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/the-3-essential-characteristics-of-access-control-for-integrators/",
+        "title": "The 3 Essential Characteristics of Access Control",
+        "sharepoint_source": "Sales2/SALES Main Folder/Content/Whitepapers/Whitepaper - The 3 Essential Characteristics of Access Control.pdf",
+        "text": """Genea Security getgenea.com COPYRIGHT © GENEA The 3 Essential Characteristics of Access Control
+In a 2022 Research and Markets report, the access control-as-a-service (ACaaS) market was valued at nearly $1 billion, driven by cloud adoption and the need to centralize disparate systems.
+Three pivotal characteristics: flexibility, connectivity, and performance.
+FLEXIBILITY WITH NON-PROPRIETARY HARDWARE AND THE CLOUD: Proprietary hardware must be used with the provider's software; non-proprietary hardware can be used with different software, offering more flexibility if a provider fails to update regularly. The cloud centralizes database information and enables remote access from anywhere.
+CONNECTIVITY: CREATING A CENTRALIZED SECURITY SOLUTION: Vestavia Hills City Schools (K-12 district, Genea customer) uses Milestone Systems for video, integrated with Genea via API. "The ability to integrate with our Milestone system... is essential and critical," said Keith Price, Director of Technology at Vestavia. Multiple VMS manufacturers have integrated with Genea, including Meraki, Ava, Salient and Rhombus Systems. Common integrations also include identity management platforms like Azure AD or Okta -- e.g. one global enterprise with 100,000+ users leveraged an out-of-the-box Azure AD integration for automated onboarding/offboarding.
+PERFORMANCE: STAYING CURRENT: Cloud-based systems help enterprises adjust to change. Example: Emergency Door Plans, engineered and deployed via internet connection in response to rising security threats. Custom roles (RBAC) can be distributed in minutes across an entire enterprise.
+MAKING THE SWITCH: Interested in learning more about Genea's cloud-based security software? Visit www.getgenea.com.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/the-four-most-common-submeter-billing-mistakes/",
+        "title": "The Four Most Common Submeter Billing Mistakes",
+        "sharepoint_source": "Marketing/CONTENT/archive/archive/The Four Most Common Submeter Billing Mistakes.pdf",
+        "text": """getgenea.com COPYRIGHT © GENEA 2023 eBook The Four Most Common Submeter Billing Mistakes
+If you have submeters, your process likely involves manual clipboard readings, inherited spreadsheets, and manually generated invoices. Mistakes are common -- property teams regularly under- or over-bill tenants, sometimes by thousands of dollars.
+MISREAD OR MISTYPED VALUES: engineers reading multiple similar meters in dark/tight spaces, mistakes not caught for weeks with no way to re-read.
+INCORRECT ROLLOVERS: meters with 4+ digits roll over from 9999 to 0000 -- unaware staff can cause significant under-billing.
+INCORRECT MULTIPLIERS: multipliers can be 2, 4, 8, 16, or even 12,000 -- if a meter is replaced and the spreadsheet isn't updated, this is one of the most expensive mistakes seen, causing thousands in misbilling monthly.
+INCORRECT FORMULAS: complex spreadsheets involve blended-rate calculations handed down between property teams; one formula mistake has repercussions across the entire sheet, hard to locate after the fact.
+Genea's Submeter Billing service automates billing, then has its own finance team check the meters are billed correctly as a second set of eyes. Free spreadsheet audit offered -- confidential review pointing out errors to resolve.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/access-control-guide-to-opening-a-new-office/",
+        "title": "The Ultimate Access Control Guide to Opening a New Office",
+        "sharepoint_source": "Marketing/CONTENT/eBooks/eBook - Guide to Opening a New Office.pdf",
+        "text": """getgenea.com COPYRIGHT © GENEA eBook The Ultimate Access Control Guide to Opening a New Office
+Getting Started: moving into a new office involves more than moving equipment -- covers everything needed to install a cloud-based access control system in a new office (retrofit vs. new build).
+COST EXPECTATIONS: ~$650/door installation, ~$800/door hardware (lock, reader, controller, motion sensor); 25-50% higher in cities like NYC or SF.
+The Hardware: Master Controller (hosts local database, bridges to cloud), Interface Boards, Reader, Electronic Locks, Access Control Cabling, Power Supply, Door Position Switches, Motion Sensors/REX Buttons.
+The Process: 1. Site inspection. 2. Cable runs during buildout. 3. Locksmith installs electronic locks. 4. Low-voltage technician connects components. 5. Program settings and test.
+The Basics of a Physical Security Policy: tiered access matching org units, permanent vs. temporary access definitions, employee training/enforcement, visitor management beyond a paper log, compliance considerations.
+Tiered Access Policy and Access Groups: match org units to doors needed; restrict blanket 24/7 access (e.g. 5:45am-9:00pm); benefits include limiting stolen-credential exposure and reducing burnout via defined hours.
+Visitor Management types: Contractors/Auditors (dedicated expiring credential), One-Time/Short Term Visitors (no credential, escorted), Recurring Visitors (limited-access badge tied to an individual name).
+Physical Security Policy adoption: HR-incorporated training, mobile credentials with SSO/2FA, discourage tailgating with signage, document policy in a company wiki, integrate SAML SSO and automatic provisioning, port data to SIEM tools like SumoLogic or Splunk.
+Integrate Access Control and Visitor Management: consolidating vendors reduces renewal meetings and system sprawl -- Genea's native visitor management app (iPad-based) integrates with the access control platform for one central system.
+About Genea: cloud-based access control system, intuitive, open, accountable, responsive, with API integrations to Okta, Active Directory, OneLogin.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/touchless-visitor-management/",
+        "title": "Touchless Visitor Management",
+        "sharepoint_source": "AllEmployees2/2022 Collateral/Visitor Management.pdf (newest copy found: 2022 -- no more recent version located)",
+        "text": """getgenea.com COPYRIGHT © GENEA 2022 Touchless Visitor Management
+In the post-Covid-19 world, it is mission critical to provide a touchless experience for guests and tenants. Our enhanced visitor management product, complete with touchless guest registration, QR code support and COVID-19 questionnaire system, ensures guests can quickly register themselves before arriving.
+1. Visitor Pre-Registration -- add guests from mobile or web applications.
+2. Custom Questionnaire -- guest receives invitation to check-in, custom COVID-19 health questions for every guest.
+3. QR Code Issued -- guest completes check-in form, receives QR code key integrating to elevators, turnstiles or other access points.
+Advanced Features: Customize Branding, Photo Capture, Instant Arrival Notifications, Print Visitor Badges, NDAs and Document Signing, Native Multi-Tenant Support, Employee Directory, Reporting and Analytics.""",
+    },
+    {
+        "link": "https://www.getgenea.com/downloads/understanding-the-differences-between-nfc-and-bluetooth/",
+        "title": "Understanding the Differences Between NFC and Bluetooth",
+        "sharepoint_source": "Marketing/CONTENT/Whitepapers/Whitepaper - Apple Wallet - NFC vs Bluetooth.pdf",
+        "text": """Understanding the Differences Between NFC and Bluetooth. Genea Security getgenea.com COPYRIGHT © GENEA
+NFC and Bluetooth Low Energy (BLE) are two protocols electronic devices use to communicate. This whitepaper answers: What are NFC and BLE? How are they similar/different? Why do they matter to mobile access control security?
+WHAT IS BLE? Power-efficient, low-cost wireless protocol used across audio, fitness, IoT, and security. Low voltage, ~1 MB/sec, 30m max range (10m practical).
+WHAT IS NFC? Subset of RFID, used in banking, ID, and access. Inductive coupling power, max 424 KB/sec, requires devices within 4cm.
+HOW DO NFC AND BLE COMPARE? Both present on modern smartphones, though iOS/Android differ in approach. NFC has appeared on ATMs, key cards, debit cards, Apple/Google Pay. NFC often "bootstraps" a higher-bandwidth BLE connection (e.g. in-car infotainment pairing).
+HOW DO BLUETOOTH AND NFC WORK? NFC involves transmission between two antennas at close range. BLE 4.0 has broadcast (unsecure by design, e.g. iBeacon/Eddystone) and connection-based (requires pairing) modes.
+IS BLUETOOTH ACCESS CONTROL MORE SECURE THAN NFC? Standard NFC/BLE broadcast aren't protected against eavesdropping by default; vendors add higher-layer cryptographic protocols. Assuming equal encryption, NFC's shorter range gives it a security edge -- an attacker needs to be within meters using specialized equipment. Selection depends on use case, vendor security profile, and accreditations.
+NFC AND EMPLOYEE BADGE IN APPLE WALLET: Genea users can store employee badges in Apple Wallet, using NFC to communicate with non-proprietary card readers. Power Reserve mode allows credential use up to 5 hours after battery depletion. Find My integration lets a lost/stolen device be marked, instantly deactivating the credential. Genea partnered with HID to bring this to market -- "unlocking" NFC support on Apple devices for frictionless secured access.""",
+    },
+]
+
+
+def main():
+    with open("data/gated_pdf_content.json", "w", encoding="utf-8") as f:
+        json.dump(GATED_ASSETS, f, indent=2, ensure_ascii=False)
+    print(f"Wrote {len(GATED_ASSETS)} gated assets to data/gated_pdf_content.json")
+
+
+if __name__ == "__main__":
+    main()
