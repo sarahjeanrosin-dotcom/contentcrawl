@@ -96,6 +96,26 @@
   .tab-btn.active { color: var(--text-primary); border-bottom-color: var(--text-primary); }
   .tab-btn + .tab-btn { margin-left: 14px; }
 
+  .weight-toggle {
+    display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 12px; font-size: 13px; color: var(--text-secondary); user-select: none;
+  }
+  .weight-toggle:hover { color: var(--text-primary); }
+  .weight-toggle .switch {
+    position: relative; width: 30px; height: 17px; border-radius: 999px;
+    background: var(--gridline); flex: none; transition: background 0.15s;
+  }
+  .weight-toggle .switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px;
+    border-radius: 50%; background: var(--surface-1); box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    transition: left 0.15s;
+  }
+  .weight-toggle.active .switch { background: var(--status-good); }
+  .weight-toggle.active .switch::after { left: 15px; }
+  .weight-toggle.active { color: var(--text-primary); }
+  .weight-note { font-size: 12px; color: var(--text-muted); margin: 6px 0 0; }
+
   .controls { display: flex; gap: 10px; flex-wrap: wrap; margin: 28px 0 14px; }
   .controls input, .controls select {
     background: var(--surface-1); color: var(--text-primary);
@@ -166,7 +186,11 @@
     <select id="type-filter"><option value="">All types</option></select>
     <select id="flag-filter"><option value="">All action flags</option></select>
     <select id="priority-filter"><option value="">All priorities</option></select>
+    <button type="button" class="weight-toggle" id="weight-toggle" aria-pressed="false">
+      <span class="switch"></span> Show weighted score
+    </button>
   </div>
+  <p class="weight-note" id="weight-note" style="display:none;"></p>
 
   <div class="card" style="padding:0; overflow-x:auto;">
     <table id="table">
@@ -174,7 +198,7 @@
         <tr>
           <th data-key="title">Title</th>
           <th data-key="type" id="type-th">Type</th>
-          <th data-key="composite" class="num">Score</th>
+          <th data-key="composite" class="num" id="score-th">Score</th>
           <th data-key="actionFlag">Action</th>
           <th data-key="priorityOrder">Priority</th>
           <th data-key="lastAudited">Last Audited</th>
@@ -258,19 +282,60 @@ let activeTab = "marketing";
 let ITEMS = [];
 let sortKey = "composite";
 let sortDir = -1;
+let weightedMode = false;
 
 function fmtDate(s) {
   return s && s !== "nan" ? s.slice(0, 10) : "—";
 }
 
+// "Weighted score" is a display-only curve, computed fresh from the real
+// composite scores on every render -- nothing in data.json/gated_data.json
+// changes. It rescales each tab independently so its own top scorer = 100,
+// which is why a per-tab max (not a global one) matters: Marketing Surface
+// and Gated Asset Quality are different rubrics with different score
+// ranges, so curving them together would be meaningless.
+function rawComposite(item) {
+  const v = Number(item.composite);
+  return (item.composite === "" || item.composite === null || isNaN(v)) ? null : v;
+}
+
+function tabMaxComposite(items) {
+  const vals = items.map(rawComposite).filter(v => v !== null);
+  return vals.length ? Math.max(...vals) : 0;
+}
+
+function effectiveComposite(item, max) {
+  const raw = rawComposite(item);
+  if (raw === null) return null;
+  if (!weightedMode || !max) return raw;
+  return Math.round((raw / max) * 100);
+}
+
+// Same 80/60/40 cutoffs score_content.py and score_gated_assets.py use for
+// the raw Action Flag -- just applied to the curved number instead, so
+// "Retain" means "this is genuinely one of our best assets" either way.
+function flagForScore(score) {
+  if (score === null) return "";
+  if (score >= 80) return "Retain";
+  if (score >= 60) return "Optimize";
+  if (score >= 40) return "Update";
+  return "Refresh";
+}
+
+function effectiveFlag(item, max) {
+  return weightedMode ? flagForScore(effectiveComposite(item, max)) : (item.actionFlag || "");
+}
+
 function renderOverview(items) {
+  const max = tabMaxComposite(items);
   const total = items.length;
-  const scored = items.filter(i => i.composite !== "" && i.composite !== null && !isNaN(Number(i.composite)));
-  const avg = scored.length ? Math.round(scored.reduce((a, i) => a + Number(i.composite), 0) / scored.length) : 0;
+  const scored = items.map(i => effectiveComposite(i, max)).filter(v => v !== null);
+  const avg = scored.length ? Math.round(scored.reduce((a, v) => a + v, 0) / scored.length) : 0;
 
   const counts = {};
   items.forEach(i => {
-    const key = Object.keys(STATUS).find(k => (i.actionFlag || "").includes(k)) || "Unknown";
+    const flag = effectiveFlag(i, max);
+    const key = Object.keys(STATUS).find(k => (flag || "").includes(k)) || "Unknown";
     counts[key] = (counts[key] || 0) + 1;
   });
   const maxCount = Math.max(1, ...Object.values(counts));
@@ -344,10 +409,14 @@ function currentFilters() {
 
 function renderTable() {
   const cfg = CONFIG[activeTab];
+  // Curved against the full tab, not the filtered/searched subset -- the
+  // "top scorer = 100" baseline shouldn't shift just because someone typed
+  // into the search box.
+  const max = tabMaxComposite(ITEMS);
   const { q, type, flag, priority } = currentFilters();
   let rows = ITEMS.filter(i => {
     if (type && i[cfg.typeKey] !== type) return false;
-    if (flag && !(i.actionFlag || "").includes(flag)) return false;
+    if (flag && !(effectiveFlag(i, max) || "").includes(flag)) return false;
     if (priority && i.priority !== priority) return false;
     if (q && !((i.title || "").toLowerCase().includes(q) || (i.link || "").toLowerCase().includes(q))) return false;
     return true;
@@ -355,6 +424,10 @@ function renderTable() {
 
   rows.forEach(i => { i.priorityOrder = priorityFor(i.priority).order; });
 
+  // Sorting by raw composite (not the curved value) is deliberate: curving
+  // is a same-tab linear rescale by a single positive factor, so it never
+  // changes relative order -- computing it per row here would just be
+  // extra work for an identical result.
   rows.sort((a, b) => {
     let av = a[sortKey], bv = b[sortKey];
     if (sortKey === "composite" || sortKey === "priorityOrder") { av = Number(av) || 0; bv = Number(bv) || 0; }
@@ -367,15 +440,17 @@ function renderTable() {
   const tbody = document.getElementById("tbody");
   document.getElementById("empty").style.display = rows.length ? "none" : "block";
   tbody.innerHTML = rows.map((item, idx) => {
-    const st = statusFor(item.actionFlag);
+    const effComposite = effectiveComposite(item, max);
+    const effFlag = effectiveFlag(item, max);
+    const st = statusFor(effFlag);
     const pr = priorityFor(item.priority);
     const typeVal = item[cfg.typeKey] || "";
     return `
     <tr class="item-row" data-idx="${idx}">
       <td class="title-cell"><a href="${item.link}" target="_blank" rel="noopener">${item.title || item.link}</a></td>
       <td class="type-cell" title="${typeVal}">${typeVal || "—"}</td>
-      <td class="num">${item.composite !== "" ? item.composite : "—"}</td>
-      <td><span class="flag"><span class="dot" style="background:${st.color};"></span>${item.actionFlag || "—"}</span></td>
+      <td class="num">${effComposite !== null ? effComposite : "—"}</td>
+      <td><span class="flag"><span class="dot" style="background:${st.color};"></span>${effFlag || "—"}</span></td>
       <td>${item.priority ? `<span class="flag"><span class="dot" style="background:${pr.color};"></span>${item.priority}</span>` : "—"}</td>
       <td>${fmtDate(item.lastAudited)}</td>
     </tr>
@@ -385,6 +460,7 @@ function renderTable() {
           ${cfg.scoreFields.map(f => `<div class="mini"><p class="label">${f.label}</p><p class="value">${item[f.key] ?? "—"}</p></div>`).join("")}
           <div class="mini"><p class="label">Impact / Effort</p><p class="value" style="font-size:14px;">${item.impact || "—"} / ${item.effort || "—"}</p></div>
         </div>
+        ${weightedMode ? `<p class="weight-note" style="margin:0 0 10px;">Raw composite: ${item.composite !== "" ? item.composite : "—"}/100 (action flag as audited: ${item.actionFlag || "—"})</p>` : ""}
         <p class="notes">${item.notes || ""}</p>
         <ul class="suggestions">${(item.suggestions || []).map(s => `<li>${s}</li>`).join("")}</ul>
       </td>
@@ -398,6 +474,25 @@ function renderTable() {
       detail.classList.toggle("open");
     });
   });
+}
+
+function updateWeightUI() {
+  const btn = document.getElementById("weight-toggle");
+  btn.classList.toggle("active", weightedMode);
+  btn.setAttribute("aria-pressed", String(weightedMode));
+  document.getElementById("score-th").textContent = weightedMode ? "Weighted Score" : "Score";
+
+  const note = document.getElementById("weight-note");
+  if (!weightedMode || !ITEMS.length) {
+    note.style.display = "none";
+    return;
+  }
+  const max = tabMaxComposite(ITEMS);
+  const top = ITEMS.find(i => rawComposite(i) === max);
+  note.style.display = "block";
+  note.textContent = top
+    ? `Curved to this tab: "${top.title}" (raw ${max}/100) is set to 100 and everything else scales with it -- Retain/Optimize/Update/Refresh recompute off the curved number. Ranking is unchanged.`
+    : `Curved to this tab's top scorer -- ranking is unchanged, only the number and action-flag cutoffs move.`;
 }
 
 function switchTab(tab) {
@@ -417,6 +512,7 @@ function switchTab(tab) {
   sortKey = "composite";
   sortDir = -1;
 
+  updateWeightUI();
   renderOverview(ITEMS);
   populateFilters(ITEMS);
   renderTable();
@@ -425,6 +521,13 @@ function switchTab(tab) {
 function init() {
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", () => switchTab(btn.getAttribute("data-tab")));
+  });
+
+  document.getElementById("weight-toggle").addEventListener("click", () => {
+    weightedMode = !weightedMode;
+    updateWeightUI();
+    renderOverview(ITEMS);
+    renderTable();
   });
 
   document.getElementById("search").addEventListener("input", renderTable);
