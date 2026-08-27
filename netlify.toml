@@ -1,2 +1,11 @@
 [build]
   publish = "site"
+
+# Whole-site HTTP Basic Auth -- see netlify/edge-functions/basic-auth.js
+# for why (gated-asset content + internal SharePoint paths are otherwise
+# publicly readable as static JSON). Requires DASHBOARD_USER and
+# DASHBOARD_PASS to be set in Netlify: Site settings > Environment
+# variables. Without them, every request is blocked (fails closed).
+[[edge_functions]]
+  path = "/*"
+  function = "basic-auth"
