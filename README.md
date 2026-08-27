@@ -168,8 +168,42 @@ then reads that workbook and writes both `site/data.json` +
 Quality tab). `site/index.html` renders both as separate tabs, each with
 its own score columns and filters, since the two rubrics don't share axes.
 
+`build_site.py` deliberately does **not** publish the gated tab's `Source`
+column (the real internal SharePoint file path, e.g. `Sales2/SALES Main
+Folder/Content/Whitepapers/...`) into `site/` — that's fine to have in the
+internal workbook under `data/`, but it has no reason to be on the public
+dashboard. It's still visible in `data/scored_gated_assets_YYYY-QQ.xlsx`
+and the combined `data/scored_YYYY-QQ.xlsx` for internal reference.
+
 Netlify redeploys the dashboard automatically whenever `site/` changes and
-gets pushed — nothing to configure beyond `git push`.
+gets pushed. It does need one manual setup step, though — see below.
+
+## Access Control
+The dashboard sits behind whole-site HTTP Basic Auth, enforced by a Netlify
+Edge Function (`netlify/edge-functions/basic-auth.js`, wired up in
+`netlify.toml`) that runs on every request — including the JSON/CSV data
+files, not just `index.html`. This exists because the dashboard has content
+that shouldn't be publicly readable even with the `Source` column removed:
+candid internal audit notes on both tabs (e.g. calling out exactly why an
+asset is weak), and the fact that `Gated Asset Quality` scores are on real
+document content in the first place.
+
+**Setup (one-time, in the Netlify UI — not something this repo can do on
+its own):**
+1. Site settings → Environment variables → add `DASHBOARD_USER` and
+   `DASHBOARD_PASS`
+2. Trigger a redeploy so the edge function picks them up
+
+**It fails closed.** If those two env vars aren't set, every request
+returns a 500 instead of silently serving the site unprotected — so a
+misconfigured deploy is *inaccessible*, never *unprotected*. If the
+dashboard is returning 500s, this is the first thing to check.
+
+This is shared-credential Basic Auth, not per-user login — treat the
+password like any other shared team password (don't paste it in plaintext
+into Slack, rotate it if it leaks). `site/index.html` also carries a
+`noindex, nofollow` meta tag as defense-in-depth against accidental search
+engine indexing, though that's not a substitute for the auth itself.
 
 ## Running it
 ```

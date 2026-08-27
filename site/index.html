@@ -241,8 +241,10 @@ function priorityFor(p) {
 
 // Two tabs, two independent rubrics -- see build_gated_content.py /
 // score_gated_assets.py for why the gated tab has different score axes
-// (accuracy/brand/sales usability/substance/next-step, no SEO factor) and
-// no meaningful "type" facet (it's SharePoint source path instead).
+// (accuracy/brand/sales usability/substance/next-step, no SEO factor).
+// The gated tab has no Type/Source column at all -- build_site.py doesn't
+// publish the SharePoint file path (internal folder structure has no
+// business being on a public-facing dashboard, even an authenticated one).
 const CONFIG = {
   marketing: {
     label: "Marketing Surface",
@@ -252,6 +254,7 @@ const CONFIG = {
     typeKey: "type",
     typeLabel: "Type",
     showTypeFilter: true,
+    showTypeColumn: true,
     scoreFields: [
       { key: "seo", label: "SEO" },
       { key: "brand", label: "Brand" },
@@ -265,9 +268,8 @@ const CONFIG = {
     subtitle: "Gated whitepapers & eBooks, scored on the real PDF content — accuracy, brand, sales usability, substance, next-step clarity",
     json: "gated_data.json",
     csv: "gated_scored_latest.csv",
-    typeKey: "source",
-    typeLabel: "Source",
     showTypeFilter: false,
+    showTypeColumn: false,
     scoreFields: [
       { key: "accuracy", label: "Accuracy" },
       { key: "brand", label: "Brand" },
@@ -381,7 +383,7 @@ function populateFilters(items) {
   const flagSel = document.getElementById("flag-filter");
   const prioritySel = document.getElementById("priority-filter");
 
-  typeSel.innerHTML = `<option value="">All ${cfg.typeLabel.toLowerCase()}s</option>`;
+  typeSel.innerHTML = `<option value="">All ${(cfg.typeLabel || "type").toLowerCase()}s</option>`;
   typeSel.style.display = cfg.showTypeFilter ? "" : "none";
   if (cfg.showTypeFilter) {
     [...new Set(items.map(i => i[cfg.typeKey]).filter(Boolean))].sort().forEach(t => {
@@ -416,7 +418,7 @@ function renderTable() {
   const max = tabMaxComposite(ITEMS);
   const { q, type, flag, priority } = currentFilters();
   let rows = ITEMS.filter(i => {
-    if (type && i[cfg.typeKey] !== type) return false;
+    if (type && cfg.showTypeFilter && i[cfg.typeKey] !== type) return false;
     if (flag && !(effectiveFlag(i, max) || "").includes(flag)) return false;
     if (priority && i.priority !== priority) return false;
     if (q && !((i.title || "").toLowerCase().includes(q) || (i.link || "").toLowerCase().includes(q))) return false;
@@ -438,6 +440,7 @@ function renderTable() {
     return 0;
   });
 
+  const colCount = cfg.showTypeColumn ? 6 : 5;
   const tbody = document.getElementById("tbody");
   document.getElementById("empty").style.display = rows.length ? "none" : "block";
   tbody.innerHTML = rows.map((item, idx) => {
@@ -445,18 +448,18 @@ function renderTable() {
     const effFlag = effectiveFlag(item, max);
     const st = statusFor(effFlag);
     const pr = priorityFor(item.priority);
-    const typeVal = item[cfg.typeKey] || "";
+    const typeVal = cfg.showTypeColumn ? (item[cfg.typeKey] || "") : null;
     return `
     <tr class="item-row" data-idx="${idx}">
       <td class="title-cell"><a href="${item.link}" target="_blank" rel="noopener">${item.title || item.link}</a></td>
-      <td class="type-cell" title="${typeVal}">${typeVal || "—"}</td>
+      ${typeVal !== null ? `<td class="type-cell" title="${typeVal}">${typeVal || "—"}</td>` : ""}
       <td class="num">${effComposite !== null ? effComposite : "—"}</td>
       <td><span class="flag"><span class="dot" style="background:${st.color};"></span>${effFlag || "—"}</span></td>
       <td>${item.priority ? `<span class="flag"><span class="dot" style="background:${pr.color};"></span>${item.priority}</span>` : "—"}</td>
       <td>${fmtDate(item.lastAudited)}</td>
     </tr>
     <tr class="detail-row" data-idx="${idx}">
-      <td colspan="6">
+      <td colspan="${colCount}">
         <div class="detail-grid">
           ${cfg.scoreFields.map(f => `<div class="mini"><p class="label">${f.label}</p><p class="value">${item[f.key] ?? "—"}</p></div>`).join("")}
           <div class="mini"><p class="label">Impact / Effort</p><p class="value" style="font-size:14px;">${item.impact || "—"} / ${item.effort || "—"}</p></div>
@@ -506,8 +509,12 @@ function switchTab(tab) {
   document.getElementById("subtitle").textContent = cfg.subtitle;
   document.getElementById("source").textContent = payload.source ? `Data source: ${payload.source}` : "";
   document.getElementById("download-btn").href = cfg.csv;
-  document.getElementById("type-th").textContent = cfg.typeLabel;
-  document.getElementById("type-th").setAttribute("data-key", cfg.typeKey);
+  const typeTh = document.getElementById("type-th");
+  typeTh.style.display = cfg.showTypeColumn ? "" : "none";
+  if (cfg.showTypeColumn) {
+    typeTh.textContent = cfg.typeLabel;
+    typeTh.setAttribute("data-key", cfg.typeKey);
+  }
 
   document.getElementById("search").value = "";
   sortKey = "composite";

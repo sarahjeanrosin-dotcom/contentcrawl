@@ -70,13 +70,16 @@ def marketing_records(df: pd.DataFrame) -> list:
 
 
 def gated_records(df: pd.DataFrame) -> list:
+    # Deliberately omits the "Source" column (real internal SharePoint file
+    # paths, e.g. "Sales2/SALES Main Folder/Content/Whitepapers/...") --
+    # that's fine to have in the internal workbook in data/, but it has no
+    # business being published to site/, even behind Basic Auth.
     records = []
     for _, row in df.iterrows():
         suggestions = str(row.get("Suggestions", "") or "")
         records.append({
             "title": row.get("Title") or row.get("Link", ""),
             "link": row.get("Link", ""),
-            "source": row.get("Source", ""),
             "accuracy": row.get("Accuracy Score", ""),
             "brand": row.get("Brand Score", ""),
             "salesUsability": row.get("Sales Usability Score", ""),
@@ -114,7 +117,7 @@ def main(scored_xlsx: str):
             "generatedFrom": scored_xlsx,
             "items": gated_records(gated_df),
         }, f, indent=2, ensure_ascii=False)
-    gated_df.drop(columns=["Content"], errors="ignore").to_csv(os.path.join("site", "gated_scored_latest.csv"), index=False)
+    gated_df.drop(columns=["Content", "Source"], errors="ignore").to_csv(os.path.join("site", "gated_scored_latest.csv"), index=False)
 
     print(f"Wrote site/data.json ({len(marketing_df)} items) and site/scored_latest.csv")
     print(f"Wrote site/gated_data.json ({len(gated_df)} items) and site/gated_scored_latest.csv")
